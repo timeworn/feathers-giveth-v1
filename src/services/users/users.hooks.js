@@ -36,7 +36,7 @@ const notifyParents = [
     watchFields: [ 'avatar', 'name' ],
   },
   {
-    service: 'dacs',
+    service: 'causes',
     parentField: 'ownerAddress',
     childField: 'address',
     watchFields: [ 'avatar', 'name' ],

@@ -1,8 +1,8 @@
-// Initializes the `dacs` service on path `/dacs`
+// Initializes the `skunkworks` service on path `/skunkworks`
 const createService = require('feathers-nedb');
-const createModel = require('../../models/dacs.model');
-const hooks = require('./dacs.hooks');
-const filters = require('./dacs.filters');
+const createModel = require('../../models/skunkworks.model');
+const hooks = require('./skunkworks.hooks');
+const filters = require('./skunkworks.filters');
 
 module.exports = function () {
   const app = this;
@@ -10,16 +10,16 @@ module.exports = function () {
   const paginate = app.get('paginate');
 
   const options = {
-    name: 'dacs',
+    name: 'skunkworks',
     Model,
     paginate
   };
 
   // Initialize our service with any options it requires
-  app.use('/dacs', createService(options));
+  app.use('/skunkworks', createService(options));
 
   // Get our initialized service so that we can register hooks and filters
-  const service = app.service('dacs');
+  const service = app.service('skunkworks');
 
   service.hooks(hooks);
 

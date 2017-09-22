@@ -6,10 +6,10 @@ import { restrictToOwner } from 'feathers-authentication-hooks';
 import sanitizeAddress from '../../hooks/sanitizeAddress';
 
 const restrict = [
-  restrictToOwner({
-    idField: 'address',
-    ownerField: 'donorAddress',
-  }),
+  // restrictToOwner({
+  //   idField: 'address',
+  //   ownerField: 'donorAddress',
+  // }),
 ];
 
 const setAddress = context => {
@@ -30,7 +30,7 @@ const updateType = () => {
     let service;
     switch (data.type) {
     case 'dac': {
-      service = context.app.service('dacs');
+      service = context.app.service('causes');
       break;
     }
     case 'campaign': {
@@ -89,7 +89,7 @@ const poSchemas = {
   'po-dac': {
     include: [
       {
-        service: 'dacs',
+        service: 'causes',
         nameAs: 'dac',
         parentField: 'type_id',
         childField: '_id',
@@ -160,13 +160,12 @@ module.exports = {
     get: [],
     create: [ ...address, updateType(),
       (context) => {
-        if (context.data.createdAt) return context;
         context.data.createdAt = new Date();
       },
     ],
     update: [ ...restrict, ...address ],
     patch: [ ...restrict, ...address ],
-    remove: [ commons.disallow() ],
+    remove: [ sanitizeAddress('donorAddress'), ...restrict ],
   },
 
   after: {

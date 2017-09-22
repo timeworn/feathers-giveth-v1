@@ -18,19 +18,10 @@ Getting up and running is as easy as 1, 2, 3.
 2. Install your dependencies
 
     ```
-    cd path/to/feathers-giveth; npm install
+    cd path/to/feathers-giveth; yarn install
     ```
-    note: due to a bug in yarn, `yarn install` currently does not work
-    
-3. feathers will need to connect to an ethereum node via websockets. Typically this will be a local TestRPC instance. 
-The configuration param `blockchain.nodeUrl` is used to establish a connection. The default nodeUrl is `ws://localhost:8546`
 
-  * we provide an easy way to start a TestRPC instance...
-  
-    1. `mkdir data/testrpc` -- this will contain the TestRPC database 
-    2. `yarn testrpc` -- this will start testrpc with some default parameters
-    
-4. Start your app
+3. Start your app
 
     ```
     yarn start
@@ -53,13 +44,15 @@ Simply run `yarn test` and all your tests in the `test/` directory will be run.
 Each of these services are available via rest or websocket:
 
 ```
-campaigns
-dacs
+givers
 donations
-donationsHistory
 milestones
-uploads
-users
+reviewer-requests
+completion-requests
+projects
+causes
+campaigns
+skunkworks
 ```
 
 To add another service use (after installing the [feathers cli](https://docs.feathersjs.com/guides/step-by-step/generators/readme.html)):
