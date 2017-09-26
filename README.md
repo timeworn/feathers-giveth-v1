@@ -18,14 +18,30 @@ Getting up and running is as easy as 1, 2, 3.
 2. Install your dependencies
 
     ```
-    cd path/to/feathers-giveth; yarn install
+    cd path/to/feathers-giveth; npm install
     ```
+    note: due to a bug in yarn, `yarn install` currently does not work
+    
+3. feathers will need to connect to an ethereum node via websockets. Typically this will be a local TestRPC instance. 
+The configuration param `blockchain.nodeUrl` is used to establish a connection. The default nodeUrl is `ws://localhost:8546`
 
-3. Start your app
+  * we provide an easy way to start a TestRPC instance...
+  
+    1. `mkdir data/testrpc` -- this will contain the TestRPC database 
+    2. `yarn testrpc` -- this will start testrpc with some default parameters
+    
+4. 1 time only - deploy liquidPledging contract
+
+    ```node --harmony deploy.js```
+    
+5. Start your app
 
     ```
     yarn start
     ```
+    * note: due to a bug somewhere (testrpc? web3? websocket?) the subscription events may not always be picked-up in feathers.
+    especially the first time you run ```yarn start```. It appears that testrpc is emitting the event correctly, but web3 Subscription
+    is not recieving the message. **If this happens, just restart feathers** and all past events will be picked up.
     
 ## Deploying
 
@@ -44,15 +60,13 @@ Simply run `yarn test` and all your tests in the `test/` directory will be run.
 Each of these services are available via rest or websocket:
 
 ```
-givers
-donations
-milestones
-reviewer-requests
-completion-requests
-projects
-causes
 campaigns
-skunkworks
+dacs
+donations
+donationsHistory
+milestones
+uploads
+users
 ```
 
 To add another service use (after installing the [feathers cli](https://docs.feathersjs.com/guides/step-by-step/generators/readme.html)):

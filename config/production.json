@@ -1,5 +1,9 @@
 {
   "host": "localhost",
   "port": 3030,
-  "uploadsBaseUrl": "https://feathers.giveth.io/uploads/"
+  "uploadsBaseUrl": "https://feathers.giveth.io/uploads/",
+  "blockchain": {
+    "rpcUrl": "wss://ethws.giveth.io",
+    "startingBlock": 4200000
+  }
 }
