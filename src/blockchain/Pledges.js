@@ -1,7 +1,6 @@
-import { pledgePaymentStatus } from './helpers';
-import { hexToNumber } from 'web3-utils';
+import { pledgePaymentStatus } from "./helpers";
 
-const ReProcessEvent = () => {
+const BreakSignal = () => {
 };
 
 class Pledges {
@@ -21,35 +20,25 @@ class Pledges {
     const { from, to, amount } = event.returnValues;
     const txHash = event.transactionHash;
 
-    const processEvent = (retry = false) => {
-      return this._getBlockTimestamp(event.blockNumber)
-        .then(ts => {
-          if (from === '0') return this._newDonation(to, amount, ts, txHash, retry)
-            .then(() => this.queue.purge(txHash))
-            .catch((err) => {
-              if (err instanceof ReProcessEvent) {
-                // this is really only useful when instant mining. Other then that, the donation should always be
-                // created before the tx was mined.
-                setTimeout(() => processEvent(true), 5000);
-                return;
-              }
-
-              console.error('_newDonation error ->', err);
-            });
+    this._getBlockTimestamp(event.blockNumber)
+      .then(ts => {
+        const processEvent = () => {
+          if (from === '0') return this._newDonation(to, amount, ts, txHash)
+            .then(() => this.queue.purge(txHash));
 
           return this._transfer(from, to, amount, ts, txHash)
             .then(() => this.queue.purge(txHash));
-        });
-    };
+        };
 
-    if (hexToNumber(event.transactionLogIndex) > 0) {
-      this.queue.add(
-        event.transactionHash,
-        processEvent
-      );
-    } else {
-      return processEvent();
-    }
+        if (event.logIndex > 0) {
+          this.queue.add(
+            event.transactionHash,
+            processEvent
+          );
+        } else {
+          return processEvent();
+        }
+      });
   }
 
   _newDonation(pledgeId, amount, ts, txHash, retry = false) {
@@ -81,11 +70,23 @@ class Pledges {
 
           // this is really only useful when instant mining. Other then that, the donation should always be
           // created before the tx was mined.
-          // setTimeout(() => this._newDonation(pledgeId, amount, ts, txHash, true), 5000);
-          throw new ReProcessEvent();
+          setTimeout(() => this._newDonation(pledgeId, amount, ts, txHash, true), 5000);
+          throw new BreakSignal();
         }
 
         return donations.patch(donation._id, mutation);
+      })
+      .catch((err) => {
+        if (err instanceof BreakSignal) return;
+        if (err.name === 'NotFound') {
+          // most likely the from pledgeAdmin hasn't been registered yet.
+          // this can happen b/c when donating in liquidPledging, if the giverId === 0, the donate method will create a
+          // giver. Thus the tx will emit 3 events. AddGiver, and 2 x Transfer. Since these are processed asyncrounously
+          // calling pledgeAdmins.get(from) could result in a 404 as the AddGiver event hasn't finished processing
+          setTimeout(() => this._newDonation(pledgeId, amount, ts, txHash, true), 5000);
+          return;
+        }
+        console.error(err); // eslint-disable-line no-console
       });
 
   }
@@ -113,7 +114,7 @@ class Pledges {
           if (filteredDonationsByAmount.length > 0) return filteredDonationsByAmount[ 0 ];
 
           // this is probably a split which happened outside of the ui
-          throw new Error(`unable to determine what donations entity to update -> from: ${from}, to: ${to}, amount: ${amount}, ts: ${ts}, txHash: ${txHash}`);
+          throw new Error('unable to determine what donations entity to update', from, to, amount, ts, txHash);
         });
     };
 
@@ -298,7 +299,7 @@ class Pledges {
     const isCampaignToMilestone = () => fromPledgeAdmin.type === 'campaign' && toPledgeAdmin.type === 'milestone';
 
     // only handling new donations & committed delegations for now
-    if (toPledge.paymentState === '0' &&( isNewDonation() || isCommittedDelegation() || isCampaignToMilestone())) {
+    if (isNewDonation() || isCommittedDelegation() || isCampaignToMilestone()) {
       const history = {
         ownerId: toPledgeAdmin.typeId,
         ownerType: toPledgeAdmin.type,
