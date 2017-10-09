@@ -1,67 +1,51 @@
 # feathers-giveth
 
-> Real-time json cache server for blockchain data
+> Real-time json cache for blockchain data.
 
-Welcome to the server code for Giveth's [dapp](https://github.com/Giveth/giveth-dapp). The dapp uses [feathers](http://feathersjs.com) as a cache for its blockchain transactions. By utilizing websockets on both the blockchain and client devices, we can receive and push updates simultaneously to all users in real time.
+## About
 
-## Table of content
+feathers-giveth uses [Feathersjs](http://feathersjs.com) as a json cache for blockchain transaction history.  The purpose is to ameliorate user wait times.  
 
-- [Getting Started](#getting-started)
-    - [Install](#install)
-    - [Run server](#run-server)
-- [Deploying](#deploying)
-- [Scripts](#scripts)
-- [Testing](#testing)
-- [Usage](#usage)
-- [Help](#help)
+Feathersjs provides both a rest and websocket interface to database.  Data itself is stored on the server file system use NeDB.  
+
+While this does nothing to speedup blockchain responses, it allows everyone connected to receive aggregate updates immediately via socketio push (aka pub/sub).  This should hopefully simplify the code for the MVP, as it will not have worry about polling for all updates.
 
 ## Getting Started
 
-### Install
-1. Click **Star** on this repo near the top-right corner of this web page.
-2. Join our [slack](http://slack.giveth.io) if you haven't already.
-3. Fork this repo by clicking **Fork** button in top-right corner of this web page. Continue to follow instruction steps from your own feathers-giveth repo.
-5. The rest of these steps must be done from your machine's command line. Clone your own "feathers-giveth" repo: 
-    ```
-    git clone https://github.com/GITHUB_USERNAME/feathers-giveth.git
-    ```
-6. Change directories to feathers-giveth:
-    ```
-    cd feathers-giveth
-    ```
-5. Make sure you have [NodeJS](https://nodejs.org/) (v8.4.0 or higher), [yarn](https://www.yarnpkg.com/) (v0.27.5 or higher), and npm (5.4.1 or higher) installed.
-6. Install dependencies from within feathers-giveth directory:
-    ```
-    npm install
-    ```
-    * note: due to a bug in yarn, `yarn install` currently does not work
+Getting up and running is as easy as 1, 2, 3.
 
-### Run server
-The feathers server will need to connect to an ethereum node via websockets. Typically this will be a local TestRPC instance. 
+1. Make sure you have [NodeJS](https://nodejs.org/) and [yarn](https://www.yarnpkg.com/) installed.
+2. Install your dependencies
+
+    ```
+    cd path/to/feathers-giveth; npm install
+    ```
+    note: due to a bug in yarn, `yarn install` currently does not work
+    
+3. feathers will need to connect to an ethereum node via websockets. Typically this will be a local TestRPC instance. 
 The configuration param `blockchain.nodeUrl` is used to establish a connection. The default nodeUrl is `ws://localhost:8546`
 
-1. We provide an easy way to start a TestRPC instance.
+  * we provide an easy way to start a TestRPC instance...
   
-    ``` 
-    yarn testrpc
-    ```
-2. Since TestRPC is now running, open a new terminal window and navigate to the same feathers-giveth directory.
+    1. `mkdir data/testrpc` -- this will contain the TestRPC database 
+    2. `yarn testrpc` -- this will start testrpc with some default parameters
     
-3. The TestRPC instance simulates a new blockchain. So we must deploy any contracts we intend to call.
+4. 1 time only - deploy liquidPledging contract
 
-    ```
-    node --harmony scripts/deploy.js
-    ```
+    ```node --harmony scripts/deploy.js```
     
-4. Start your app
+5. Start your app
 
     ```
     yarn start
     ```
+    * note: due to a bug somewhere (testrpc? web3? websocket?) the subscription events may not always be picked-up in feathers.
+    especially the first time you run ```yarn start```. It appears that testrpc is emitting the event correctly, but web3 Subscription
+    is not recieving the message. **If this happens, just restart feathers** and all past events will be picked up.
     
 ## Deploying
 
-1. Start a production server
+1. start a production server
 
     ```
     yarn serve
@@ -69,12 +53,10 @@ The configuration param `blockchain.nodeUrl` is used to establish a connection. 
     
 ## Scripts
 
-The `feathers-giveth/scripts` directory contains a few scripts to help development.
+The `scripts` directory contains a few scripts to help development.
 
 `deploy.js` - deploys a new vault & liquidPledging contract
-
 `getState.js` - prints the current state of the deployed vault & liquidPledging contracts.
-
 `confirm.js` - confirms any payments that are pending in the vault 
 
 ## Testing
@@ -83,7 +65,7 @@ Simply run `yarn test` and all your tests in the `test/` directory will be run.
 
 ## Usage
 
-Each of these services are available via rest or websockets:
+Each of these services are available via rest or websocket:
 
 ```
 campaigns
@@ -94,10 +76,77 @@ milestones
 uploads
 users
 ```
-If the server is using default configurations, you can see data for any of these services through your web browser at `http://localhost:3030/SERVICE_NAME`
+
+To add another service use (after installing the [feathers cli](https://docs.feathersjs.com/guides/step-by-step/generators/readme.html)):
+
+```
+feathers generate service
+```
+
+Choose defaults for options as described [here](https://docs.feathersjs.com/guides/chat/service.html)
+
+# Rest calls using curl
+
+Example to store new json object:
+
+```
+curl 'http://secret.com:3030/skunkworks/' -H 'Content-Type: application/json' --data-binary '{ "name": "Curler", "text": "Hello from the command line!" }'
+```
+
+Example to remove all json objects:
+
+```
+curl 'http://secret.com:3030/skunkworks/' -X "DELETE"
+```
+
+# WebSocket calls using javascript
+
+You may call these services from client web app using the  [feathers api](https://docs.feathersjs.com/api/databases/common.html#service-methods).
+
+Example to connect to donations service:
+
+```javascript
+const socket = io();
+const client = feathers();
+client.configure(feathers.socketio(socket));
+const donations = client.service('donations');
+```
+
+Example to get donation data from server db and do something for each stored json object (notice pagination):
+
+```javascript
+donations.find().then(page => page.data.forEach(doSomethingWithJsonObject));
+```
+
+Example to subscribe to donations service create event assign it to named function:
+```javascript
+donations.on('created', doSomethingWithJsonObject);
+```
+
+## Data schemas
+
+Using a microservice approach, services are seperated into seperate json databases (which are really just json data files on the server).
+
+Currenlty there are no enforced fields for json objects.  Required fields and types may be introduced later with hooks.
+
+## Hooks
+Currently there are no [hooks](https://docs.feathersjs.com/api/hooks.html) but they can and will be added as a convenient way to execute operations that must occur on all requests (e.g. authorization, validation).
+
+
 
 ## Help
 
-For more info on how to work with feathers checkout out their docs on [service methods](https://docs.feathersjs.com/api/databases/common.html#service-methods), [service events](https://docs.feathersjs.com/api/events.html#service-events), and [database querying](https://docs.feathersjs.com/api/databases/querying.html).
+Checkout Feathersjs api [service methods](https://docs.feathersjs.com/api/databases/common.html#service-methods) and [service events](https://docs.feathersjs.com/api/events.html#service-events) and [database querying](https://docs.feathersjs.com/api/databases/querying.html).
 
-Also feel free to reach out to us on [slack](http://slack.giveth.io) for any help or to share ideas.
+
+## Changelog
+
+__0.1.0__
+
+- Initial release
+
+## License
+
+Copyright (c) 2016
+
+Licensed under the [MIT license](LICENSE).
