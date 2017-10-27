@@ -112,12 +112,6 @@ const schema = {
       parentField: 'recipientAddress',
       childField: 'address',
     },
-    {
-      service: 'campaigns',
-      nameAs: 'campaign',
-      parentField: 'campaignId',
-      childField: '_id',
-    },    
   ],
 };
 

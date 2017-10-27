@@ -2,7 +2,7 @@ import Web3 from 'web3';
 import liquidpledging from 'liquidpledging';
 
 import LiquidPledgingMonitor from './LiquidPledgingMonitor';
-import FailedTxMonitor from "./FailedTxMonitor";
+import FailedTxMonitor from './FailedTxMonitor';
 
 const LiquidPledging = liquidpledging.LiquidPledging(false);
 const Vault = liquidpledging.Vault;
@@ -49,12 +49,11 @@ export default function () {
   web3.currentProvider.connection.onclose = (e) => console.error('connection closed ->', e);
 
   const init = () => {
-    const txMonitor = new FailedTxMonitor(web3, app);
-    txMonitor.start();
+    new FailedTxMonitor(web3, app).start();
 
     getLiquidPledging(web3)
       .then(liquidPledging => {
-        const lpMonitor = new LiquidPledgingMonitor(app, liquidPledging, txMonitor, opts);
+        const lpMonitor = new LiquidPledgingMonitor(app, liquidPledging, opts);
         lpMonitor.start();
       });
   };

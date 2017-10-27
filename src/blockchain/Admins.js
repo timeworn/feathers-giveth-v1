@@ -64,12 +64,7 @@ class Admins {
           return this._addGiver(giver, giverId, 0);
         }
 
-        const mutation = { commitTime: giver.commitTime };
-        if (giver.name && giver.name !== user.name) {
-          mutation.name = giver.name;
-        }
-
-        return users.patch(user.address, mutation);
+        return users.patch(user.address, { commitTime: giver.commitTime, name: giver.name });
       })
       .catch(err => {
         if (err instanceof BreakSignal) return;
@@ -98,12 +93,7 @@ class Admins {
         if (user.giverId && user.giverId !== 0) {
           console.error(`user already has a giverId set. existing giverId: ${user.giverId}, new giverId: ${giverId}`);
         }
-
-        const mutation = { commitTime, giverId: giverId };
-        if (!user.name) {
-          mutation.name = name;
-        }
-        return users.patch(user.address, mutation);
+        return users.patch(user.address, { commitTime, name, giverId: giverId });
       })
       .then(user => this._addPledgeAdmin(giverId, 'giver', user.address))
       .then(() => this.queue.purge(txHash))
