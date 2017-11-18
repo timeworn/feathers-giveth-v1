@@ -1,5 +1,7 @@
 import LPPMilestone from 'lpp-milestone';
 
+import { milestoneStatus } from './helpers';
+
 /**
  * class to keep feathers cache in sync with lpp-milestone contracts
  */

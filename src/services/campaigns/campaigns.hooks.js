@@ -4,7 +4,6 @@ import errors from 'feathers-errors';
 import sanitizeAddress from '../../hooks/sanitizeAddress';
 import setAddress from '../../hooks/setAddress';
 import sanitizeHtml from '../../hooks/sanitizeHtml';
-import isProjectAllowed from "../../hooks/isProjectAllowed";
 
 const restrict = () => context => {
   // internal call are fine
@@ -24,7 +23,7 @@ const restrict = () => context => {
   const canUpdate = (campaign) => {
     if (!campaign) throw new errors.Forbidden();
 
-    // reviewer Canceled
+    // reviewer can mark Completed or Canceled
     if (data.status === 'Canceled' && data.mined === false) {
       if (user.address !== campaign.reviewerAddress && user.address !== campaign.ownerAddress) throw new errors.Forbidden();
 
@@ -90,7 +89,7 @@ module.exports = {
     create: [ setAddress('ownerAddress'), sanitizeAddress('ownerAddress', {
       required: true,
       validate: true,
-    }), isProjectAllowed(), sanitizeHtml('description') ],
+    }), sanitizeHtml('description') ],
     update: [ restrict(), sanitizeAddress('ownerAddress', { required: true, validate: true }), sanitizeHtml('description') ],
     patch: [ restrict(), sanitizeAddress('ownerAddress', { validate: true }), sanitizeHtml('description') ],
     remove: [ commons.disallow() ],
