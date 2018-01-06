@@ -1,7 +1,7 @@
 import { hexToNumber } from 'web3-utils';
-import { LiquidPledgingAbi } from 'liquidpledging/build/LiquidPledging.sol';
-import { LPVaultAbi } from 'liquidpledging/build/LPVault.sol';
-import { LPPCappedMilestonesAbi } from 'lpp-capped-milestone/build/LPPCappedMilestones.sol'
+import { LiquidPledgingAbi } from 'giveth-liquidpledging-token/build/LiquidPledging.sol';
+import { LPVaultAbi } from 'giveth-liquidpledging-token/build/LPVault.sol';
+import { LPPCappedMilestonesAbi } from 'lpp-capped-milestone-token/build/LPPCappedMilestones.sol'
 import EventEmitter from 'events';
 import logger from 'winston';
 
@@ -245,7 +245,7 @@ class FailedTxMonitor extends EventEmitter {
               // if canceled, it's possible that the milestone was markedComplete,
               // but b/c that process is off-chain
               // we just reset to InProgress, and the recipient can mark complete again.
-              mutation = { status: 'InProgress', mined: true, prevStatus: milestone.prevStatus };
+              mutation = { status: 'InProgress', mined: true };
             } else if (milestone.status === 'Paying') {
               mutation = { status: 'Completed', mined: true };
             } else if (milestone.status === 'Paid') {

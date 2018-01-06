@@ -5,7 +5,6 @@ import sanitizeAddress from '../../hooks/sanitizeAddress';
 import setAddress from '../../hooks/setAddress';
 import sanitizeHtml from '../../hooks/sanitizeHtml';
 import isProjectAllowed from '../../hooks/isProjectAllowed';
-import Notifications from './../../utils/dappMailer';
 
 
 const restrict = () => (context) => {
@@ -33,7 +32,7 @@ const restrict = () => (context) => {
       if (!reviewers.includes(user.address)) throw new errors.Forbidden('Only the reviewer accept or cancel a milestone');
 
       // whitelist of what the reviewer can update
-      const approvedKeys = ['txHash', 'status', 'mined', 'prevStatus'];
+      const approvedKeys = ['txHash', 'status', 'mined'];
 
       const keysToRemove = Object.keys(data).map(key => !approvedKeys.includes(key));
       keysToRemove.forEach(key => delete data[key]);
@@ -61,63 +60,6 @@ const restrict = () => (context) => {
   return getMilestones()
     .then(milestones => ((Array.isArray(milestones)) ? milestones.forEach(canUpdate) : canUpdate(milestones)));
 };
-
-
-/**
- *
- * Conditionally sends a notification after patch or create
- *
- **/
-const sendNotification = () => (context) => {
-  const { id, data, app, result } = context;
-
-  /**
-   * Notifications when a milestone get created
-   **/
-  if(context.method === 'create') {
-    if(result.status === 'proposed') {
-      // find the campaign admin and send a notification that milestone is proposed
-      app.service('users').find({query: { address: data.campaignOwnerAddress }})
-        .then((users) => {
-          console.log('campaignOwner', users)
-
-          Notifications.milestoneProposed(app, {
-            recipient: users.data[0].email,
-            user: users.data[0].name,
-            milestoneTitle: data.title,
-            amount: data.maxAmount
-          });  
-        })
-        .catch((e) => console.error('error sending proposed milestone notification', e));
-    };  
-  }
-
-  /**
-   * Notifications when a milestone get patches
-   **/
-  if(context.method === 'patch') {
-    if(result.prevStatus === 'proposed' && result.status === 'InProgress' && result.mined) {
-      // find the milestone owner and send a notification that his/her proposed milestone is approved
-      Notifications.proposedMilestoneAccepted(app, {
-        recipient: result.owner.email,
-        user: result.owner.name,
-        milestoneTitle: result.title,
-        amount: result.maxAmount,
-        txHash: result.txHash
-      });    
-    }
-
-    if(result.prevStatus === 'proposed' && result.status === 'rejected') {
-      // find the milestone owner and send a notification that his/her proposed milestone is rejected
-      Notifications.proposedMilestoneRejected(app, {
-        recipient: result.owner.email,
-        user: result.owner.name,
-        milestoneTitle: result.title,
-      });    
-    }  
-  }
-};
-
 
 const address = [
   sanitizeAddress('pluginAddress', { required: true, validate: true }),
@@ -175,9 +117,9 @@ module.exports = {
     all: [commons.populate({ schema })],
     find: [],
     get: [],
-    create: [sendNotification()],
+    create: [],
     update: [],
-    patch: [sendNotification()],
+    patch: [],
     remove: [],
   },
 
