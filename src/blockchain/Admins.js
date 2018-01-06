@@ -1,5 +1,6 @@
 import logger from 'winston';
 
+import { LPPDac } from 'lpp-dac';
 import { LPPCappedMilestones } from 'lpp-capped-milestone';
 import { LPPCappedMilestonesRuntimeByteCode } from 'lpp-capped-milestone/build/LPPCappedMilestones.sol';
 import { LPPCampaign } from 'lpp-campaign';
@@ -14,11 +15,10 @@ const BreakSignal = () => {
  * class to keep feathers cache in sync with liquidpledging admins
  */
 class Admins {
-  constructor(app, liquidPledging, lppDacs, eventQueue) {
+  constructor(app, liquidPledging, eventQueue) {
     this.app = app;
     this.web3 = liquidPledging.$web3;
     this.liquidPledging = liquidPledging;
-    this.lppDacs = lppDacs;
     this.queue = eventQueue;
   }
 
@@ -27,7 +27,6 @@ class Admins {
 
     const { returnValues } = event;
 
-    this.queue.startProcessing(event.transactionHash);
     this.liquidPledging.getPledgeAdmin(returnValues.idGiver)
       .then(giver => this._addGiver(giver, returnValues.idGiver, event.transactionHash))
       .catch(err => logger.error('addGiver error ->', err));
@@ -108,7 +107,6 @@ class Admins {
       })
       .then(user => this._addPledgeAdmin(giverId, 'giver', user.address))
       .then(() => this.queue.purge(txHash))
-      .then(() => this.queue.finishedProcessing(txHash))
       .then(() => user)
       .catch(err => logger.error('_addGiver error ->', err));
   }
@@ -189,8 +187,11 @@ class Admins {
         return data[ 0 ];
       });
 
-    const getTokenInfo = () => this.lppDacs.getDac(delegateId)
-      .then(({ token }) => getTokenInformation(this.web3, token));
+    const getTokenInfo = (delegate) => {
+      const dac = new LPPDac(this.web3, delegate.plugin);
+
+      return dac.token().then(addr => getTokenInformation(this.web3, addr));
+    };
 
     return this.liquidPledging.getPledgeAdmin(delegateId)
       .then(delegate => Promise.all([ delegate, findDAC(delegate), getTokenInfo(delegate) ]))
@@ -603,6 +604,7 @@ class Admins {
 
     return pledgeAdmins.create({ id, type, typeId })
       .catch((err) => {
+        // console.log(err);
         if (err.errorType === 'uniqueViolated') {
           // TODO specify schema here so the 'admin' object isn't attached to the fetched pledgeAdmin
           return pledgeAdmins.get(id)

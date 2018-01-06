@@ -1,6 +1,7 @@
 import logger from 'winston';
 import { hexToNumber, toBN } from 'web3-utils';
 import { pledgeState } from './helpers';
+import Notifications from './../utils/dappMailer';
 
 const ReProcessEvent = () => {
 };
@@ -34,31 +35,29 @@ class Pledges {
     const { from, to, amount } = event.returnValues;
     const txHash = event.transactionHash;
 
-    const processEvent = (retry = false) => {
-      this.queue.startProcessing(txHash);
-      return this._getBlockTimestamp(event.blockNumber)
-        .then((ts) => {
+    const processEvent = (retry = false) => this._getBlockTimestamp(event.blockNumber)
+      .then((ts) => {
+        this.processing[ txHash ] = true;
 
-          if (from === '0') {
-            return this._newDonation(to, amount, ts, txHash, retry)
-              .then(() => this.queue.purge(txHash))
-              .catch((err) => {
-                if (err instanceof ReProcessEvent) {
-                  // this is really only useful when instant mining. Other then that, the
-                  // donation should always be created before the tx was mined.
-                  setTimeout(() => processEvent(true), 5000);
-                  return;
-                }
+        if (from === '0') {
+          return this._newDonation(to, amount, ts, txHash, retry)
+            .then(() => this.queue.purge(txHash))
+            .catch((err) => {
+              if (err instanceof ReProcessEvent) {
+                // this is really only useful when instant mining. Other then that, the
+                // donation should always be created before the tx was mined.
+                setTimeout(() => processEvent(true), 5000);
+                return;
+              }
 
-                logger.error('_newDonation error ->', err);
-              });
-          }
+              logger.error('_newDonation error ->', err);
+            });
+        }
 
-          return this._transfer(from, to, amount, ts, txHash)
-            .then(() => this.queue.purge(txHash));
-        })
-        .then(() => this.queue.finishedProcessing(txHash));
-    };
+        return this._transfer(from, to, amount, ts, txHash)
+          .then(() => this.queue.purge(txHash));
+      })
+      .then(() => delete this.processing[ txHash ]);
 
     // parity uses transactionLogIndex
     const logIndex = (has.call(event, 'transactionLogIndex')) ? event.transactionLogIndex : undefined;
@@ -68,7 +67,7 @@ class Pledges {
     // if logIndex is not undefined, then use that otherwise
     // b/c geth doesn't include transactionLogIndex, we are
     // making the assumption that events will be passed in order.
-    if ((logIndex !== undefined && hexToNumber(logIndex) > 0) || this.queue.isProcessing(txHash)) {
+    if ((logIndex !== undefined && hexToNumber(logIndex) > 0) || this.processing[ txHash ]) {
       this.queue.add(
         event.transactionHash,
         processEvent,
@@ -108,8 +107,8 @@ class Pledges {
             return donations.create(Object.assign(mutation, { txHash }));
           }
 
-          // this is really only useful when instant mining. and re-syncing feathers w/ past events.
-          // Other then that, the donation should always be created before the tx was mined.
+          // this is really only useful when instant mining. Other then that, the donation should always be
+          // created before the tx was mined.
           throw new ReProcessEvent();
         }
 
@@ -121,7 +120,7 @@ class Pledges {
     const donations = this.app.service('donations');
     const pledgeAdmins = this.app.service('pledgeAdmins');
 
-    const getDonation = () => donations.find({ query: { pledgeId: from } })
+    const getDonation = () => donations.find({schema: 'includeTypeAndGiverDetails', query: { pledgeId: from } })
       .then((donations) => {
         if (donations.data.length === 1) return donations.data[ 0 ];
 
@@ -277,11 +276,51 @@ class Pledges {
 
   _doTransfer(transferInfo) {
     const donations = this.app.service('donations');
-    const { donation, amount } = transferInfo;
+    const { toPledgeAdmin, toPledge, toPledgeId, delegate, intendedProject, donation, amount, ts } = transferInfo;
 
     if (donation.amount === amount) {
       // this is a complete pledge transfer
       const mutation = this._createDonationMutation(transferInfo);
+
+      if(mutation.status === 'committed') {
+        // send a receipt to the donor
+        Notifications.donation(this.app, {
+          recipient: donation.ownerEntity.email,
+          user: donation.ownerEntity.name,
+          txHash: donation.txHash,
+          donationType: toPledgeAdmin.type, // dac / campaign / milestone
+          donatedToTitle: toPledgeAdmin.admin.title,
+          amount: donation.amount
+        }); 
+
+  
+        console.log('toPledgeAdmin.type', toPledgeAdmin.type);
+        /** 
+         * send a notification to the admin of the dac / campaign / milestone
+         **/
+
+        // if this is a DAC or a campaign, then the donation needs delegation
+        if(['dac', 'campaign'].indexOf(toPledgeAdmin.type) > -1) {
+          Notifications.delegationRequired(this.app, {
+            recipient: toPledgeAdmin.admin.owner.email,
+            user: toPledgeAdmin.admin.owner.name,
+            txHash: donation.txHash,
+            donationType: toPledgeAdmin.type, // dac / campaign
+            donatedToTitle: toPledgeAdmin.admin.title,
+            amount: donation.amount
+          }); 
+        } else {
+          // if this is a milestone then no action is required
+          Notifications.donationReceived(this.app, {
+            recipient: toPledgeAdmin.admin.owner.email,
+            user: toPledgeAdmin.admin.owner.name,
+            txHash: donation.txHash,
+            donationType: toPledgeAdmin.type, // milestone
+            donatedToTitle: toPledgeAdmin.admin.title,
+            amount: donation.amount
+          });            
+        }
+      }
 
       return donations.patch(donation._id, mutation)
         .then(() => this._trackDonationHistory(transferInfo));
