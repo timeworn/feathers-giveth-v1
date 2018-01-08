@@ -23,9 +23,9 @@ export default function () {
 
     if (hook.error) {
       if (hook.path === 'authentication/challenges' && hook.error.message.includes('Challenge =')) {
-        logger.warn(hook.error);
+        logger.debug(hook.error);
       } else {
-        logger.warn(hook.error);
+        logger.error(hook.error);
       }
     }
   };
