@@ -2,7 +2,8 @@ import authentication from 'feathers-authentication';
 import jwt from 'feathers-authentication-jwt';
 import web3 from './authenticationWeb3';
 
-export default function() {
+
+export default function () {
   const app = this;
   const config = app.get('authentication');
 
@@ -16,8 +17,12 @@ export default function() {
   // to create a new valid JWT (e.g. local or oauth2)
   app.service('authentication').hooks({
     before: {
-      create: [authentication.hooks.authenticate(config.strategies)],
-      remove: [authentication.hooks.authenticate('jwt')],
+      create: [
+        authentication.hooks.authenticate(config.strategies),
+      ],
+      remove: [
+        authentication.hooks.authenticate('jwt'),
+      ],
     },
   });
 }

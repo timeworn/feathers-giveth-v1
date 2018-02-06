@@ -6,7 +6,7 @@ export const milestoneStatus = (accepted, canceled) => {
   return 'InProgress';
 };
 
-export const pledgeState = val => {
+export const pledgeState = (val) => {
   switch (val) {
     case '0':
       return 'Pledged';
@@ -22,9 +22,13 @@ export const pledgeState = val => {
 export const getTokenInformation = (web3, addr) => {
   const minime = new MiniMeToken(web3, addr);
 
-  return Promise.all([minime.name(), minime.symbol()]).then(([name, symbol]) => ({
-    name,
-    symbol,
-    address: addr,
-  }));
+  return Promise.all([
+    minime.name(),
+    minime.symbol(),
+  ])
+    .then(([name, symbol]) => ({
+      name,
+      symbol,
+      address: addr,
+    }));
 };
