@@ -13,20 +13,20 @@ import { updatedAt, createdAt } from '../../hooks/timestamps';
 
 BigNumber.config({ DECIMAL_PLACES: 18 });
 
-const getMilestones = context => {
-  if (context.id) return context.service.get(context.id);
-  if (!context.id && context.params.query) return context.service.find(context.params.query);
-  return Promise.resolve();
-};
-
 const restrict = () => context => {
   // internal call are fine
   if (!context.params.provider) return context;
 
-  const { data } = context;
+  const { data, service } = context;
   const { user } = context.params;
 
   if (!user) throw new errors.NotAuthenticated();
+
+  const getMilestones = () => {
+    if (context.id) return service.get(context.id);
+    if (!context.id && context.params.query) return service.find(context.params.query);
+    return undefined;
+  };
 
   const canUpdate = milestone => {
     if (!milestone) throw new errors.Forbidden();
@@ -102,7 +102,7 @@ const restrict = () => context => {
     }
   };
 
-  return getMilestones(context).then(
+  return getMilestones().then(
     milestones =>
       Array.isArray(milestones) ? milestones.forEach(canUpdate) : canUpdate(milestones),
   );
@@ -286,7 +286,7 @@ const checkMilestoneDates = () => context => {
     const timestamp = Math.round(date) / 1000;
 
     if (todaysTimestamp - timestamp < 0) {
-      throw new errors.Forbidden('Future items are not allowed');
+      throw new errors.Forbidden('Future items are not allowd');
     }
   };
 
@@ -305,22 +305,6 @@ const address = [
     validate: true,
   }),
 ];
-
-const canDelete = () => context => {
-  const isDeletable = milestone => {
-    if (!milestone) throw new errors.NotFound();
-
-    if (!['proposed', 'rejected'].includes(milestone.status)) {
-      throw new errors.Forbidden('only proposed milestones can be removed');
-    }
-  };
-
-  return getMilestones(context).then(milestones => {
-    if (Array.isArray(milestones)) milestones.forEach(isDeletable);
-    else isDeletable(milestones);
-    return context;
-  });
-};
 
 const schema = {
   include: [
@@ -397,7 +381,7 @@ module.exports = {
       sanitizeHtml('description'),
       updatedAt,
     ],
-    remove: [canDelete()],
+    remove: [commons.disallow()],
   },
 
   after: {
