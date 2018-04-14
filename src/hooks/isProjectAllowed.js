@@ -43,10 +43,7 @@ const checkOwner = context => {
   const items = commons.getItems(context);
 
   const inWhitelist = project => {
-    if (
-      ownerWhitelist.includes(project.ownerAddress.toLowerCase()) ||
-      project.status === 'proposed'
-    ) {
+    if (ownerWhitelist.includes(project.ownerAddress.toLowerCase())) {
       return;
     }
 
