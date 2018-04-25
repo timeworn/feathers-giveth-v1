@@ -1,9 +1,9 @@
 import logger from 'winston';
 
-import { Kernel, AppProxyUpgradeable } from 'giveth-liquidpledging/build/contracts';
-import { LPPCappedMilestone } from 'lpp-capped-milestone';
+import { LPPCappedMilestones } from 'lpp-capped-milestone-token';
+import { LPPCappedMilestonesRuntimeByteCode } from 'lpp-capped-milestone-token/build/LPPCappedMilestones.sol';
 import { LPPCampaign } from 'lpp-campaign';
-import { LPPDac } from 'lpp-dac';
+import { LPPCampaignRuntimeByteCode } from 'lpp-campaign/build/LPPCampaignFactory.sol';
 
 import { getTokenInformation, milestoneStatus, pledgeState } from './helpers';
 
@@ -13,10 +13,11 @@ const BreakSignal = () => {};
  * class to keep feathers cache in sync with liquidpledging admins
  */
 class Admins {
-  constructor(app, liquidPledging, eventQueue) {
+  constructor(app, liquidPledging, lppDacs, eventQueue) {
     this.app = app;
     this.web3 = liquidPledging.$web3;
     this.liquidPledging = liquidPledging;
+    this.lppDacs = lppDacs;
     this.queue = eventQueue;
   }
 
@@ -122,6 +123,7 @@ class Admins {
       .catch(err => logger.error('_addGiver error ->', err));
   }
 
+  // TODO support delegates other then dacs
   addDelegate(event) {
     if (event.event !== 'DelegateAdded')
       throw new Error('addDelegate only handles DelegateAdded events');
@@ -203,10 +205,8 @@ class Admins {
         return data[0];
       });
 
-    const getTokenInfo = delegate =>
-      new LPPDac(this.web3, delegate.plugin)
-        .dacToken()
-        .then(token => getTokenInformation(this.web3, token));
+    const getTokenInfo = () =>
+      this.lppDacs.getDac(delegateId).then(({ token }) => getTokenInformation(this.web3, token));
 
     return this.liquidPledging
       .getPledgeAdmin(delegateId)
@@ -236,31 +236,24 @@ class Admins {
     const projectId = event.returnValues.idProject;
     const txHash = event.transactionHash;
 
-    return this.getAndSetAppBases().then(() =>
-      this.liquidPledging
-        .getPledgeAdmin(projectId)
-        .then(project =>
-          Promise.all([project, new AppProxyUpgradeable(this.web3, project.plugin).getCode()]),
-        )
-        .then(([project, baseCode]) => {
-          if (!this.milestoneBase || !this.campaignBase)
-            logger.error(
-              'missing milestone or campaign base',
-              this.milestoneBase,
-              this.campaignBase,
-            );
-          if (baseCode === this.milestoneBase)
-            return this._addMilestone(project, projectId, txHash);
-          if (baseCode === this.campaignBase) return this._addCampaign(project, projectId, txHash);
+    return this.liquidPledging
+      .getPledgeAdmin(projectId)
+      .then(project => Promise.all([project, this.web3.eth.getCode(project.plugin)]))
+      .then(([project, byteCode]) => {
+        if (byteCode === LPPCappedMilestonesRuntimeByteCode)
+          return this._addMilestone(project, projectId, txHash);
+        if (byteCode === LPPCampaignRuntimeByteCode)
+          return this._addCampaign(project, projectId, txHash);
 
-          logger.error('AddProject event with unknown plugin baseCode ->', event, baseCode);
-        }),
-    );
+        logger.error('AddProject event with unknown plugin byteCode ->', event);
+      });
   }
 
   _addMilestone(project, projectId, txHash, retry = false) {
     const milestones = this.app.service('/milestones');
     const campaigns = this.app.service('/campaigns');
+
+    const cappedMilestones = new LPPCappedMilestones(this.web3, project.plugin);
 
     // get_or_create campaign by projectId
     const findCampaign = campaignProjectId =>
@@ -334,29 +327,23 @@ class Admins {
         return data[0];
       });
 
-    const cappedMilestone = new LPPCappedMilestone(this.web3, project.plugin);
-
     return Promise.all([
       findMilestone(),
-      cappedMilestone.maxAmount(),
-      cappedMilestone.reviewer(),
-      cappedMilestone.campaignReviewer(),
-      cappedMilestone.recipient(),
-      cappedMilestone.completed(),
+      cappedMilestones.getMilestone(projectId),
       this.liquidPledging.isProjectCanceled(projectId),
     ])
-      .then(([milestone, maxAmount, reviewer, campaignReviewer, recipient, completed, canceled]) =>
+      .then(([milestone, bMilestone, canceled]) =>
         milestones.patch(milestone._id, {
           projectId,
-          maxAmount: maxAmount,
-          reviewerAddress: reviewer,
-          campaignReviewerAddress: campaignReviewer,
-          recipientAddress: recipient,
+          maxAmount: bMilestone.maxAmount,
+          reviewerAddress: bMilestone.reviewer,
+          campaignReviewerAddress: bMilestone.campaignReviewer,
+          recipientAddress: bMilestone.recipient,
           title: project.name,
           pluginAddress: project.plugin,
-          status: milestoneStatus(completed, canceled),
+          status: milestoneStatus(bMilestone.accepted, canceled),
           mined: true,
-        })
+        }),
       )
       .then(milestone => {
         this._addPledgeAdmin(projectId, 'milestone', milestone._id).then(() => milestone);
@@ -382,14 +369,12 @@ class Admins {
             throw new BreakSignal();
           }
 
-          const lppCampaign = new LPPCampaign(this.web3, project.plugin);
-
-          return Promise.all([this.web3.eth.getTransaction(txHash), lppCampaign.reviewer()])
-            .then(([tx, reviewerAddress]) =>
+          return this.web3.eth
+            .getTransaction(txHash)
+            .then(tx =>
               campaigns.create({
                 ownerAddress: tx.from,
                 pluginAddress: project.plugin,
-                reviewerAddress,
                 title: project.name,
                 description: '',
                 txHash,
@@ -415,7 +400,7 @@ class Admins {
     const lppCampaign = new LPPCampaign(this.web3, project.plugin);
 
     const getTokenInfo = () =>
-      lppCampaign.campaignToken().then(addr => getTokenInformation(this.web3, addr));
+      lppCampaign.token().then(addr => getTokenInformation(this.web3, addr));
 
     return Promise.all([
       findCampaign(),
@@ -519,42 +504,6 @@ class Admins {
       .catch(err => {
         if (err instanceof BreakSignal) return;
         logger.error('_updateCampaign error ->', err);
-      });
-  }
-
-  setApp(event) {
-    if (event.event !== 'SetApp') throw new Error('setApp only handles SetApp events');
-
-    const { name, app } = event.returnValues;
-    const { keccak256 } = this.web3.utils;
-
-    if (name === keccak256('lpp-capped-milestone')) {
-      this.milestoneBase = app;
-    } else if (name === keccak256('lpp-campaign')) {
-      this.campaignBase = app;
-    } else {
-      logger.warn(`Unkonwn name in SetApp event:`, event);
-    }
-  }
-
-  getAndSetAppBases() {
-    if (this.campaignBase && this.milestoneBase) return Promise.resolve();
-
-    const { keccak256 } = this.web3.utils;
-
-    return this.liquidPledging
-      .kernel()
-      .then(kernel => {
-        const k = new Kernel(this.web3, kernel);
-
-        return Promise.all([
-          k.getApp(keccak256(keccak256('base') + keccak256('lpp-campaign').substr(2))),
-          k.getApp(keccak256(keccak256('base') + keccak256('lpp-capped-milestone').substr(2))),
-        ]);
-      })
-      .then(([campaignBase, milestoneBase]) => {
-        this.campaignBase = campaignBase;
-        this.milestoneBase = milestoneBase;
       });
   }
 

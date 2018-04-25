@@ -1,7 +1,7 @@
 import logger from 'winston';
 
 /**
- * class to keep feathers cache in sync with lpp-capped-milestone contracts
+ * class to keep feathers cache in sync with lpp-capped-milestones contract
  */
 class CappedMilestones {
   constructor(app, web3) {
@@ -10,47 +10,46 @@ class CappedMilestones {
     this.milestones = this.app.service('milestones');
   }
 
-  reviewRequested(event) {
-    if (event.event !== 'MilestoneCompleteRequested')
-      throw new Error('reviewRequested only handles MilestoneCompleteRequested events');
+  milestoneAccepted(event) {
+    if (event.event !== 'MilestoneAccepted')
+      throw new Error('milestoneAccepted only handles MilestoneAccepted events');
 
-    this.updateMilestoneStatus(event.returnValues.idProject, 'NeedsReview');
-  }
+    const { idProject } = event.returnValues;
 
-  rejected(event) {
-    if (event.event !== 'MilestoneCompleteRequestRejected')
-      throw new Error('rejected only handles MilestoneCompleteRequestRejected events');
+    this.milestones
+      .find({ query: { projectId: idProject } })
+      .then(({ data }) => {
+        // not interested in any milestones we aren't aware of.
+        if (data.length === 0) return;
 
-    this.updateMilestoneStatus(event.returnValues.idProject, 'InProgress');
-  }
+        const m = data[0];
 
-  accepted(event) {
-    if (event.event !== 'MilestoneCompleteRequestApproved')
-      throw new Error('accepted only handles MilestoneCompleteRequestApproved events');
-
-    this.updateMilestoneStatus(event.returnValues.idProject, 'Complete');
+        return this.milestones.patch(m._id, {
+          status: 'Completed',
+          mined: true,
+        });
+      })
+      .catch(logger.error);
   }
 
   paymentCollected(event) {
     if (event.event !== 'PaymentCollected')
       throw new Error('paymentCollected only handles PaymentCollected events');
 
-    this.updateMilestoneStatus(event.returnValues.idProject, 'Paid');
-  }
+    const { idProject } = event.returnValues;
 
-  updateMilestoneStatus(projectId, status) {
     this.milestones
-      .find({ query: { projectId } })
+      .find({ query: { projectId: idProject } })
       .then(({ data }) => {
-        // only interested in milestones we are aware of.
-        if (data.length === 1) {
-          const m = data[0];
+        // not interested in any milestones we aren't aware of.
+        if (data.length === 0) return;
 
-          this.milestones.patch(m._id, {
-            status,
-            mined: true,
-          });
-        }
+        const m = data[0];
+
+        return this.milestones.patch(m._id, {
+          status: 'Paid',
+          mined: true,
+        });
       })
       .catch(logger.error);
   }
