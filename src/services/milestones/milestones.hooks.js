@@ -53,10 +53,11 @@ const getApprovedKeys = (milestone, data, user) => {
     'fiatAmount',
     'conversionRate',
     'items',
+    'message'
   ];
 
   // Fields that can be editted once milestone stored on the blockchain
-  const editMilestoneKeysOnChain = ['title', 'description', 'summary'];
+  const editMilestoneKeysOnChain = ['title', 'description', 'summary', 'message', 'mined'];
 
   switch (milestone.status) {
     case MILESTONE.PROPOSED:
@@ -67,7 +68,7 @@ const getApprovedKeys = (milestone, data, user) => {
         }
         logger.info(`Accepting proposed milestone with id: ${milestone._id} by: ${user.address}`);
 
-        return ['txHash', 'status', 'mined', 'ownerAddress'];
+        return ['txHash', 'status', 'mined', 'ownerAddress', 'message'];
       }
 
       // Reject proposed milestone by Campaign Manager
@@ -77,7 +78,7 @@ const getApprovedKeys = (milestone, data, user) => {
         }
         logger.info(`Rejecting proposed milestone with id: ${milestone._id} by: ${user.address}`);
 
-        return ['status'];
+        return ['status', 'mined', 'message'];
       }
 
       // Editing milestone can be done by Milestone or Campaing Manager
@@ -117,7 +118,7 @@ const getApprovedKeys = (milestone, data, user) => {
           throw new errors.Forbidden('Only the Milestone Manager can repropose rejected milestone');
         }
         logger.info(`Reproposing rejected milestone with id: ${milestone._id} by: ${user.address}`);
-        return ['status'];
+        return ['status', 'mined', 'message'];
       }
       break;
 
@@ -131,7 +132,7 @@ const getApprovedKeys = (milestone, data, user) => {
         }
         logger.info(`Marking milestone as complete. Milestone id: ${milestone._id}`);
 
-        return ['status'];
+        return ['status', 'mined', 'message'];
       }
 
       // Cancel milestone by Campaign or Milestone Reviewer
@@ -142,7 +143,7 @@ const getApprovedKeys = (milestone, data, user) => {
           );
         }
 
-        return ['txHash', 'status', 'mined', 'prevStatus'];
+        return ['txHash', 'status', 'mined', 'prevStatus', 'message'];
       }
 
       // Editing milestone can be done by Campaign or Milestone Manager
@@ -164,7 +165,7 @@ const getApprovedKeys = (milestone, data, user) => {
           );
         }
         logger.info(`Approving milestone complete with id: ${milestone._id} by: ${user.address}`);
-        return ['txHash', 'status', 'mined', 'prevStatus'];
+        return ['txHash', 'status', 'mined', 'prevStatus', 'message'];
       }
 
       // Reject milestone completed by Campaign or Milestone Reviewer
@@ -175,7 +176,7 @@ const getApprovedKeys = (milestone, data, user) => {
           );
         }
         logger.info(`Rejecting milestone complete with id: ${milestone._id} by: ${user.address}`);
-        return ['status'];
+        return ['status', 'mined', 'message'];
       }
 
       // Cancel milestone by Campaign or Milestone Reviewer
@@ -190,7 +191,7 @@ const getApprovedKeys = (milestone, data, user) => {
             user.address
           }`,
         );
-        return ['txHash', 'status', 'mined', 'prevStatus'];
+        return ['txHash', 'status', 'mined', 'prevStatus', 'message'];
       }
 
       // Editing milestone can be done by Milestone or Campaign Manager
@@ -294,7 +295,27 @@ const restrict = () => context => {
  *
  * */
 const sendNotification = () => context => {
-  const { data, app, result } = context;
+  const { data, app, result, params } = context;
+  const { user } = params
+
+  // console.log('params --> ', context.params)
+
+  // console.log('result  --> ')
+  // console.log(result.prevStatus, result.status)  
+
+
+  const _createConversion = (app, data, messageContext, user) => {
+    app
+      .service('conversations').create({
+        milestoneId: data._id,
+        message: data.message,
+        messageContext: messageContext,
+        user: user
+      })
+      .then(res => logger.info('created conversation!', res))
+      .catch( e => logger.error('could not create conversation', e));  
+  }
+
 
   /**
    * Notifications when a milestone get created
@@ -320,9 +341,17 @@ const sendNotification = () => context => {
 
   /**
    * Notifications when a milestone get patches
+   * This only gets triggered when the txHash is received through a milestone event
+   * Which basically means the event is really mined
    * */
-  if (context.method === 'patch') {
-    if (result.prevStatus === 'proposed' && result.status === 'InProgress' && result.mined) {
+  if (context.method === 'patch' && context.params.eventTxHash) {
+
+    // console.log('result  --> ')
+    // console.log(result.prevStatus, result.status)
+
+    if (result.prevStatus === 'proposed' && result.status === 'InProgress') {
+      _createConversion(app, result, 'proposedAccepted', user);
+
       // find the milestone owner and send a notification that his/her proposed milestone is approved
       Notifications.proposedMilestoneAccepted(app, {
         recipient: result.owner.email,
@@ -333,18 +362,10 @@ const sendNotification = () => context => {
       });
     }
 
-    if (result.prevStatus === 'proposed' && result.status === 'rejected') {
-      // find the milestone owner and send a notification that his/her proposed milestone is rejected
-      Notifications.proposedMilestoneRejected(app, {
-        recipient: result.owner.email,
-        user: result.owner.name,
-        milestoneTitle: result.title,
-        campaignTitle: result.campaign.title,
-      });
-    }
-
     if (result.status === 'NeedsReview') {
       // find the milestone reviewer owner and send a notification that this milestone is been marked as complete and needs review
+      _createConversion(app, result, result.status, user);
+
       Notifications.milestoneRequestReview(app, {
         recipient: result.reviewer.email,
         user: result.reviewer.name,
@@ -354,6 +375,8 @@ const sendNotification = () => context => {
     }
 
     if (result.status === 'Completed' && result.mined) {
+      _createConversion(app, result, result.status, user);
+
       // find the milestone owner and send a notification that his/her milestone is marked complete
       Notifications.milestoneMarkedCompleted(app, {
         recipient: result.owner.email,
@@ -364,6 +387,8 @@ const sendNotification = () => context => {
     }
 
     if (result.prevStatus === 'NeedsReview' && result.status === 'InProgress') {
+      _createConversion(app, result, 'rejected', user);
+
       // find the milestone reviewer and send a notification that his/her milestone has been rejected by reviewer
       Notifications.milestoneReviewRejected(app, {
         recipient: result.reviewer.email,
@@ -374,6 +399,8 @@ const sendNotification = () => context => {
     }
 
     if (result.status === 'Canceled' && result.mined) {
+      _createConversion(app, result, result.status, user);
+
       // find the milestone owner and send a notification that his/her milestone is canceled
       Notifications.milestoneCanceled(app, {
         recipient: result.owner.email,
@@ -383,7 +410,27 @@ const sendNotification = () => context => {
       });
     }
   }
+
+  if (context.method === 'patch' && !context.params.eventTxHash) {
+    if (result.prevStatus === 'proposed' && result.status === 'rejected') {
+      _createConversion(app, result, 'proposedRejected', user);
+
+      // find the milestone owner and send a notification that his/her proposed milestone is rejected
+      Notifications.proposedMilestoneRejected(app, {
+        recipient: result.owner.email,
+        user: result.owner.name,
+        milestoneTitle: result.title,
+        campaignTitle: result.campaign.title,
+      });
+    }    
+
+    if (result.prevStatus === 'rejected' && result.status === 'proposed') {
+      _createConversion(app, result, 'rePropose', user);
+    }    
+  }
+
 };
+
 
 /** *
  * This function checks that the maxAmount in the milestone is based on the correct conversion rate of the milestone date
@@ -503,7 +550,9 @@ const canDelete = () => context => {
 };
 
 const storePrevState = () => context => {
-  if (context.data.status) {
+  // do not update prevStatus when triggered by contract event
+  // it has already been set
+  if (context.data.status && !context.params.eventTxHash) {
     return getMilestones(context).then(milestone => {
       context.data.prevStatus = milestone.status;
       return context;
@@ -512,6 +561,18 @@ const storePrevState = () => context => {
 
   return context;
 };
+
+/**
+ * Stores the address of the user who patched (= performed action on) the milestone
+ **/ 
+const performedBy = () => context => {
+  // do not process internal calls as they have no user
+  if (!context.params.provider) return context;
+
+  context.data.performedByAddress = context.params.user.address;
+  return context;
+}
+
 
 const schema = {
   include: [
@@ -579,6 +640,7 @@ module.exports = {
       ),
       sanitizeHtml('description'),
       storePrevState(),
+      performedBy(),
       updatedAt,
     ],
     remove: [canDelete()],
