@@ -15,7 +15,7 @@ const defaults = {
 const KEYS = ['secret', 'header', 'entity', 'service', 'passReqToCallback', 'session', 'jwt'];
 
 export default function web3(options = {}) {
-  return function setup() {
+  return function() {
     const app = this;
     const _super = app.setup;
 

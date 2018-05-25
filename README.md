@@ -49,18 +49,23 @@ The configuration param `blockchain.nodeUrl` is used to establish a connection. 
    yarn deploy-local
    ```
 
-2. We provide an easy way to start the bridge & 2 ganache-cli instances.
+2. We provide an easy way to start a ganache-cli instance.
   
     ``` 
-    yarn start:networks
+    yarn ganache-cli 
     ```
-3. Since the bridge & ganache-cli is now running, open a new terminal window and navigate to the same feathers-giveth directory.
+3. Since ganache-cli is now running, open a new terminal window and navigate to the same feathers-giveth directory.
     
 4. Start your app
 
     ```
     yarn start
     ```
+
+### Kill Ganache
+If you run into errors like wallet balance not loading, it is very likely that Ganache is stuck
+`netstat -vanp tcp | grep 8545`
+Find the process that is listening on `*.8545` and `127.0.0.1.8545` and kill it with `kill -9 PID` (which is in the last colomn)
     
 ### Video Walkthrough
 Video tutorial walkthrough here: https://tinyurl.com/y9lx6jrl

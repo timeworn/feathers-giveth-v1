@@ -101,11 +101,7 @@ class Admins {
       })
       .then(u => {
         user = u;
-        if (
-          user.giverId &&
-          (user.giverId !== 0 || user.giverId !== '0') &&
-          user.giverId !== giverId
-        ) {
+        if (user.giverId && (user.giverId !== 0 || user.giverId !== '0')) {
           logger.error(
             `user already has a giverId set. existing giverId: ${
               user.giverId
@@ -352,7 +348,7 @@ class Admins {
       .then(([milestone, maxAmount, reviewer, campaignReviewer, recipient, completed, canceled]) =>
         milestones.patch(milestone._id, {
           projectId,
-          maxAmount,
+          maxAmount: maxAmount,
           reviewerAddress: reviewer,
           campaignReviewerAddress: campaignReviewer,
           recipientAddress: recipient,
@@ -360,7 +356,8 @@ class Admins {
           pluginAddress: project.plugin,
           status: milestoneStatus(completed, canceled),
           mined: true,
-        }),
+          performedByAddress: milestone.ownerAddress
+        }, { eventTxHash: txHash })
       )
       .then(milestone => {
         this._addPledgeAdmin(projectId, 'milestone', milestone._id).then(() => milestone);
@@ -631,7 +628,7 @@ class Admins {
         return service.patch(pledgeAdmin.typeId, {
           status: 'Canceled',
           mined: true,
-        });
+        }, { eventTxHash: event.transactionHash });
       })
       .catch(error => {
         if (error.name === 'NotFound') return;
