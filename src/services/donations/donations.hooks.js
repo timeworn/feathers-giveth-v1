@@ -5,7 +5,6 @@ import commons from 'feathers-hooks-common';
 import sanitizeAddress from '../../hooks/sanitizeAddress';
 import setAddress from '../../hooks/setAddress';
 import { updatedAt, createdAt } from '../../hooks/timestamps';
-import addConfirmations from '../../hooks/addConfirmations';
 
 const restrict = () => context => {
   // internal call are fine
@@ -262,8 +261,8 @@ module.exports = {
 
   after: {
     all: [populateSchema()],
-    find: [addConfirmations()],
-    get: [addConfirmations()],
+    find: [],
+    get: [],
     create: [],
     update: [],
     patch: [],

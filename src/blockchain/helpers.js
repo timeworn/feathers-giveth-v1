@@ -1,8 +1,8 @@
 import { MiniMeToken } from 'minimetoken';
 
-export const milestoneStatus = (completed, canceled) => {
+export const milestoneStatus = (accepted, canceled) => {
   if (canceled) return 'Canceled';
-  if (completed) return 'Completed';
+  if (accepted) return 'Completed';
   return 'InProgress';
 };
 

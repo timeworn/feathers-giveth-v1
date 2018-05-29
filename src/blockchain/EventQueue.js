@@ -15,35 +15,35 @@ class EventQueue {
     }, 1000 * 60 * 5);
   }
 
-  isProcessing(id) {
-    return this.processing[id] || false;
+  isProcessing(txHash) {
+    return this.processing[txHash] || false;
   }
 
-  startProcessing(id) {
-    this.processing[id] = true;
+  startProcessing(txHash) {
+    this.processing[txHash] = true;
   }
 
-  finishedProcessing(id) {
-    delete this.processing[id];
+  finishedProcessing(txHash) {
+    delete this.processing[txHash];
   }
 
-  add(id, fn) {
-    logger.debug('adding to queue ->', id);
+  add(txHash, fn) {
+    logger.debug('adding to queue ->', txHash);
 
-    if (this.queue[id]) {
-      this.queue[id].push(fn);
+    if (this.queue[txHash]) {
+      this.queue[txHash].push(fn);
     } else {
-      this.queue[id] = [fn];
+      this.queue[txHash] = [fn];
     }
   }
 
-  purge(id) {
-    if (!this.queue[id]) return Promise.resolve();
+  purge(txHash) {
+    if (!this.queue[txHash]) return Promise.resolve();
 
-    const queued = this.queue[id];
+    const queued = this.queue[txHash];
 
     if (queued.length > 0) {
-      logger.debug('purging queue ->', id);
+      logger.debug('purging queue ->', txHash);
       let result = queued.splice(0, 1)[0](); // remove first function from list and run it
 
       if (!has.call(result, 'then')) {
@@ -52,8 +52,8 @@ class EventQueue {
 
       return result.then(() => {
         logger.debug('returned from purge');
-        if (this.queue[id] && this.queue[id].length === 0) {
-          delete this.queue[id];
+        if (this.queue[txHash] && this.queue[txHash].length === 0) {
+          delete this.queue[txHash];
         }
       });
     }

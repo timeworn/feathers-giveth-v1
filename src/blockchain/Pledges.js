@@ -1,16 +1,17 @@
 import logger from 'winston';
 import { hexToNumber, toBN } from 'web3-utils';
 import { pledgeState } from './helpers';
+import Notifications from './../utils/dappMailer';
 
 const ReProcessEvent = () => {};
 
 const has = Object.prototype.hasOwnProperty;
 
-function getDonationStatus(pledge, pledgeAdmin, hasIntendedProject, hasDelegate) {
-  if (pledge.pledgeState === '1') return 'paying';
-  if (pledge.pledgeState === '2') return 'paid';
-  if (hasIntendedProject) return 'to_approve';
-  if (pledgeAdmin.type === 'giver' || hasDelegate) return 'waiting';
+function getDonationStatus({ toPledge, toPledgeAdmin, intendedProject, delegate }) {
+  if (toPledge.pledgeState === '1') return 'paying';
+  if (toPledge.pledgeState === '2') return 'paid';
+  if (intendedProject) return 'to_approve';
+  if (toPledgeAdmin.type === 'giver' || delegate) return 'waiting';
   return 'committed';
 }
 
@@ -34,10 +35,10 @@ class Pledges {
 
     const processEvent = (retry = false) => {
       this.queue.startProcessing(txHash);
-      return this.getBlockTimestamp(event.blockNumber)
+      return this._getBlockTimestamp(event.blockNumber)
         .then(ts => {
           if (from === '0') {
-            return this.newDonation(to, amount, ts, txHash, retry)
+            return this._newDonation(to, amount, ts, txHash, retry)
               .then(() => this.queue.purge(txHash))
               .catch(err => {
                 if (err instanceof ReProcessEvent) {
@@ -47,7 +48,7 @@ class Pledges {
                   return;
                 }
 
-                logger.error('newDonation error ->', err);
+                logger.error('_newDonation error ->', err);
               });
           }
 
@@ -71,7 +72,7 @@ class Pledges {
     }
   }
 
-  newDonation(pledgeId, amount, ts, txHash, retry = false) {
+  _newDonation(pledgeId, amount, ts, txHash, retry = false) {
     const donations = this.app.service('donations');
     const pledgeAdmins = this.app.service('pledgeAdmins');
 
@@ -143,7 +144,7 @@ class Pledges {
           // TODO is this comment only applicable while we don't support splits?
           // this is probably a split which happened outside of the ui
           throw new Error(
-            `unable to determine what donations entity to update -> from: ${from}, to: ${to}, amount: ${amount}, ts: ${ts}, txHash: ${txHash}, donations: ${donations}`,
+            `unable to determine what donations entity to update -> from: ${from}, to: ${to}, amount: ${amount}, ts: ${ts}, txHash: ${txHash}`,
           );
         });
 
@@ -218,7 +219,7 @@ class Pledges {
    * @param transferInfo object containing information regarding the Transfer event
    * @private
    */
-  createDonationMutation(transferInfo) {
+  _createDonationMutation(transferInfo) {
     const {
       toPledgeAdmin,
       toPledge,
@@ -230,7 +231,7 @@ class Pledges {
       ts,
     } = transferInfo;
 
-    const status = getDonationStatus(toPledge, toPledgeAdmin, !!intendedProject, !!delegate);
+    const status = getDonationStatus(transferInfo);
 
     const mutation = {
       amount,
@@ -291,7 +292,7 @@ class Pledges {
     // we need to update the milestones status
     if (['1', '2'].includes(toPledge.pledgeState) && toPledgeAdmin.type === 'milestone') {
       this.app.service('milestones').patch(toPledgeAdmin.typeId, {
-        status: toPledge.pledgeState === '1' ? 'Paying' : 'Paid',
+        status: toPledge.pledgeState === '1' ? 'Paying' : 'CanWithdraw',
         mined: true,
       });
     }
@@ -302,8 +303,6 @@ class Pledges {
   _doTransfer(transferInfo) {
     const donations = this.app.service('donations');
     const {
-      fromPledge,
-      fromPledgeAdmin,
       toPledgeAdmin,
       toPledge,
       toPledgeId,
@@ -316,7 +315,7 @@ class Pledges {
 
     if (donation.amount === amount) {
       // this is a complete pledge transfer
-      const mutation = this.createDonationMutation(transferInfo);
+      const mutation = this._createDonationMutation(transferInfo);
 
       // TODO fix the logic here so it sends the correct notifications
       // if (mutation.status === 'committed' || mutation.status === 'waiting' && delegate) {
@@ -369,115 +368,78 @@ class Pledges {
 
       return donations
         .patch(donation._id, mutation)
-        .then(() => this.trackDonationHistory(transferInfo));
+        .then(() => this._trackDonationHistory(transferInfo));
     }
     // this is a split
 
     // update the current donation. only change is the amount
-    const updateDonation = () => {
-      const a = toBN(donation.amount)
-        .sub(toBN(amount))
-        .toString();
-
-      const status =
-        amount === '0'
-          ? 'paid'
-          : getDonationStatus(
-              fromPledge,
-              fromPledgeAdmin,
-              donation.intendedProject && donation.intendedProject !== '0',
-              !!donation.delegate,
-            );
-
-      return donations.patch(donation._id, {
-        status,
-        amount: a,
+    const updateDonation = () =>
+      donations.patch(donation._id, {
+        amount: toBN(donation.amount)
+          .sub(toBN(amount))
+          .toString(),
       });
-    };
 
-    // TODO create a donation model that copies the appropriate data
     // create a new donation
-    const newDonation = Object.assign({}, donation, this.createDonationMutation(transferInfo));
+    const newDonation = Object.assign({}, donation, this._createDonationMutation(transferInfo));
     delete newDonation._id;
     delete newDonation.$unset;
-    delete newDonation._include;
-    delete newDonation.giver;
-    delete newDonation.ownerEntity;
-    delete newDonation.requiredConfirmations;
-    delete newDonation.confirmations;
 
     const createDonation = () => donations.create(newDonation);
 
-    return Promise.all([updateDonation(), createDonation()]).then(([updated, created]) =>
-      this.trackDonationHistory(Object.assign({}, transferInfo, { toDonation: created })),
-    );
+    return Promise.all([updateDonation(), createDonation()]).then(([updated, created]) => {
+      // TODO track donation histories
+    });
   }
 
-  trackDonationHistory(transferInfo) {
+  _trackDonationHistory(transferInfo) {
     const donationsHistory = this.app.service('donations/history');
     const {
       fromPledgeAdmin,
       toPledgeAdmin,
       fromPledge,
       toPledge,
-      toPledgeId,
+      _toPledgeId,
       delegate,
-      intendedProject,
+      _intendedProject,
       donation,
-      toDonation,
       amount,
       ts,
     } = transferInfo;
 
     const isNewDonation = () =>
-      !toDonation &&
       fromPledge.oldPledge === '0' &&
       (toPledgeAdmin.type !== 'giver' || toPledge.nDelegates === '1') &&
       toPledge.intendedProject === '0';
     const isCommittedDelegation = () =>
-      !toDonation &&
-      fromPledge.intendedProject !== '0' &&
-      fromPledge.intendedProject === toPledge.owner;
+      fromPledge.intendedProject !== '0' && fromPledge.intendedProject === toPledge.owner;
     const isCampaignToMilestone = () =>
-      !toDonation && fromPledgeAdmin.type === 'campaign' && toPledgeAdmin.type === 'milestone';
+      fromPledgeAdmin.type === 'campaign' && toPledgeAdmin.type === 'milestone';
 
-    const history = {
-      ownerId: toPledgeAdmin.typeId,
-      ownerType: toPledgeAdmin.type,
-      createdAt: ts,
-      amount,
-      txHash: donation.txHash,
-      donationId: donation._id,
-      giverAddress: donation.giverAddress,
-    };
-
-    if (delegate) {
-      Object.assign(history, {
-        delegateType: delegate.type,
-        delegateId: delegate.typeId,
-      });
-    }
-
-    // new donations & committed delegations
+    // only handling new donations & committed delegations for now
     if (
       toPledge.pledgeState === '0' &&
       (isNewDonation() || isCommittedDelegation() || isCampaignToMilestone())
     ) {
-      // TODO remove this if statement one we handle all scenarios
+      const history = {
+        ownerId: toPledgeAdmin.typeId,
+        ownerType: toPledgeAdmin.type,
+        createdAt: ts,
+        amount,
+        txHash: donation.txHash,
+        donationId: donation._id,
+        giverAddress: donation.giverAddress,
+      };
+
+      if (delegate) {
+        Object.assign(history, {
+          delegateType: delegate.type,
+          delegateId: delegate.typeId,
+        });
+      }
+
       return donationsHistory.create(history);
     }
-
-    // regular transfer
-    if (toPledge.pledgeState === '0' && toDonation) {
-      Object.assign(history, {
-        donationId: toDonation._id,
-        fromDonationId: donation._id,
-        fromOwnerId: fromPledgeAdmin.typeId,
-        fromOwnerType: fromPledgeAdmin.type,
-      });
-      return donationsHistory.create(history);
-    }
-
     // if (toPledge.paymentStatus === 'Paying' || toPledge.paymentStatus === 'Paid') {
     //   // payment has been initiated/completed in vault
     //   return donationsHistory.create({
@@ -489,6 +451,8 @@ class Pledges {
     // canceled payment from vault
 
     // vetoed delegation
+
+    // regular transfer
   }
 
   /**
@@ -506,7 +470,7 @@ class Pledges {
    * @return Promise with a single ts value
    * @private
    */
-  getBlockTimestamp(blockNumber) {
+  _getBlockTimestamp(blockNumber) {
     if (this.blockTimes[blockNumber]) return Promise.resolve(this.blockTimes[blockNumber]);
 
     // if we are already fetching the block, don't do it twice

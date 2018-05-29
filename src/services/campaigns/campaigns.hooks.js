@@ -6,7 +6,6 @@ import setAddress from '../../hooks/setAddress';
 import sanitizeHtml from '../../hooks/sanitizeHtml';
 import isProjectAllowed from '../../hooks/isProjectAllowed';
 import { updatedAt, createdAt } from '../../hooks/timestamps';
-import addConfirmations from '../../hooks/addConfirmations';
 
 const restrict = () => context => {
   // internal call are fine
@@ -50,12 +49,6 @@ const schema = {
       service: 'users',
       nameAs: 'owner',
       parentField: 'ownerAddress',
-      childField: 'address',
-    },
-    {
-      service: 'users',
-      nameAs: 'reviewer',
-      parentField: 'reviewerAddress',
       childField: 'address',
     },
   ],
@@ -126,8 +119,8 @@ module.exports = {
 
   after: {
     all: [commons.populate({ schema })],
-    find: [addMilestoneCounts(), addConfirmations()],
-    get: [addMilestoneCounts(), addConfirmations()],
+    find: [addMilestoneCounts()],
+    get: [addMilestoneCounts()],
     create: [],
     update: [],
     patch: [],

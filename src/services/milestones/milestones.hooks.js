@@ -10,7 +10,6 @@ import sanitizeHtml from '../../hooks/sanitizeHtml';
 import isProjectAllowed from '../../hooks/isProjectAllowed';
 import Notifications from './../../utils/dappMailer';
 import { updatedAt, createdAt } from '../../hooks/timestamps';
-import addConfirmations from '../../hooks/addConfirmations';
 
 /* eslint no-underscore-dangle: 0 */
 
@@ -53,7 +52,6 @@ const getApprovedKeys = (milestone, data, user) => {
     'fiatAmount',
     'conversionRate',
     'items',
-    'image',
   ];
 
   // Fields that can be editted once milestone stored on the blockchain
@@ -132,7 +130,7 @@ const getApprovedKeys = (milestone, data, user) => {
         }
         logger.info(`Marking milestone as complete. Milestone id: ${milestone._id}`);
 
-        return ['status', 'mined'];
+        return ['status'];
       }
 
       // Cancel milestone by Campaign or Milestone Reviewer
@@ -176,7 +174,7 @@ const getApprovedKeys = (milestone, data, user) => {
           );
         }
         logger.info(`Rejecting milestone complete with id: ${milestone._id} by: ${user.address}`);
-        return ['status', 'mined'];
+        return ['status'];
       }
 
       // Cancel milestone by Campaign or Milestone Reviewer
@@ -503,17 +501,6 @@ const canDelete = () => context => {
   });
 };
 
-const storePrevState = () => context => {
-  if (context.data.status) {
-    return getMilestones(context).then(milestone => {
-      context.data.prevStatus = milestone.status;
-      return context;
-    });
-  }
-
-  return context;
-};
-
 const schema = {
   include: [
     {
@@ -579,7 +566,6 @@ module.exports = {
         { validate: true },
       ),
       sanitizeHtml('description'),
-      storePrevState(),
       updatedAt,
     ],
     remove: [canDelete()],
@@ -587,8 +573,8 @@ module.exports = {
 
   after: {
     all: [commons.populate({ schema })],
-    find: [addConfirmations()],
-    get: [addConfirmations()],
+    find: [],
+    get: [],
     create: [sendNotification()],
     update: [],
     patch: [sendNotification()],

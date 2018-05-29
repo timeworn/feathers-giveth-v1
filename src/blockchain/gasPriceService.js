@@ -1,7 +1,5 @@
-import logger from 'winston';
-import rp from 'request-promise';
-
-import app from './../app';
+const rp = require('request-promise');
+const app = require('./../app');
 
 const FIVE_MINUTES = 1000 * 60 * 5;
 
@@ -9,10 +7,10 @@ const FIVE_MINUTES = 1000 * 60 * 5;
 // Usage within app: app.get('gasPrice')
 // Returns a full json at the moment
 const queryGasPrice = () => {
-  logger.debug('fetching gas price from ethgasstation');
+  console.log('fetching gas price from ethgasstation');
   return rp('https://ethgasstation.info/json/ethgasAPI.json')
     .then(resp => app.set('gasPrice', JSON.parse(resp)))
-    .catch(e => logger.error('could not fetch gas from ethgasstation', e.statusCode || e));
+    .catch(e => console.error('could not fetch gas from ethgasstation', e));
 };
 
 // query gas price every minute
