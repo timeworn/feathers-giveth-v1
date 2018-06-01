@@ -14,31 +14,31 @@ class CappedMilestones {
     if (event.event !== 'MilestoneCompleteRequested')
       throw new Error('reviewRequested only handles MilestoneCompleteRequested events');
 
-    this.updateMilestoneStatus(event.returnValues.idProject, 'NeedsReview', event.transactionHash);
+    this.updateMilestoneStatus(event.returnValues.idProject, 'NeedsReview');
   }
 
   rejected(event) {
     if (event.event !== 'MilestoneCompleteRequestRejected')
       throw new Error('rejected only handles MilestoneCompleteRequestRejected events');
 
-    this.updateMilestoneStatus(event.returnValues.idProject, 'InProgress', event.transactionHash);
+    this.updateMilestoneStatus(event.returnValues.idProject, 'InProgress');
   }
 
   accepted(event) {
     if (event.event !== 'MilestoneCompleteRequestApproved')
       throw new Error('accepted only handles MilestoneCompleteRequestApproved events');
 
-    this.updateMilestoneStatus(event.returnValues.idProject, 'Completed', event.transactionHash);
+    this.updateMilestoneStatus(event.returnValues.idProject, 'Completed');
   }
 
   paymentCollected(event) {
     if (event.event !== 'PaymentCollected')
       throw new Error('paymentCollected only handles PaymentCollected events');
 
-    this.updateMilestoneStatus(event.returnValues.idProject, 'Paid', event.transactionHash);
+    this.updateMilestoneStatus(event.returnValues.idProject, 'Paid');
   }
 
-  updateMilestoneStatus(projectId, status, txHash) {
+  updateMilestoneStatus(projectId, status) {
     this.milestones
       .find({ query: { projectId } })
       .then(({ data }) => {
@@ -49,7 +49,7 @@ class CappedMilestones {
           this.milestones.patch(m._id, {
             status,
             mined: true,
-          }, { eventTxHash: txHash });
+          });
         }
       })
       .catch(logger.error);
