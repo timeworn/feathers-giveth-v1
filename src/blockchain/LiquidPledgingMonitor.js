@@ -235,11 +235,10 @@ export default class {
 
       if (!this.config._id) this.initializingConfig = true;
 
-      console.log(this.config)
-
-      this.model.findOneAndUpdate({},
+      this.model.update(
+        { _id: this.config._id },
         this.config,
-        { upsert: true, new: true },
+        { upsert: true },
         (err, numAffected, affectedDocs, upsert) => {
           if (err) logger.error('updateConfig ->', err);
 
