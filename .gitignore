@@ -3,7 +3,6 @@ scripts/deployGiveth.js
 scripts/deployBridge.js
 config/production.json
 config/development.json
-ecosystem.config.js
 
 # Logs
 logs
