@@ -22,8 +22,6 @@ import appHooks from './app.hooks';
 import authentication from './authentication';
 import blockchain from './blockchain';
 
-const mongoose = require('./mongoose');
-
 const app = feathers();
 
 // Load app configuration
@@ -57,7 +55,6 @@ app.use('/', feathers.static(app.get('public')));
 
 // Set up Plugins and providers
 app.configure(hooks());
-app.configure(mongoose);
 app.configure(rest());
 app.configure(socketsConfig);
 

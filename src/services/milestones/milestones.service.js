@@ -1,5 +1,5 @@
 // Initializes the `milestones` service on path `/milestones`
-const createService = require('feathers-mongoose');
+const createService = require('feathers-nedb');
 const createModel = require('../../models/milestones.model');
 const hooks = require('./milestones.hooks');
 const filters = require('./milestones.filters');

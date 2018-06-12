@@ -1,5 +1,5 @@
 // Initializes the `pledgeAdmins` service on path `/pledgeAdmins`
-import createService from 'feathers-mongoose';
+import createService from 'feathers-nedb';
 import createModel from '../../models/pledgeAdmins.model';
 import hooks from './pledgeAdmins.hooks';
 import filters from './pledgeAdmins.filters';

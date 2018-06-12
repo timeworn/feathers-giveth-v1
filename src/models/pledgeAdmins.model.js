@@ -1,17 +1,14 @@
-// pledgeAdmins-model.js - A mongoose model
-// 
-// See http://mongoosejs.com/docs/models.html
-// for more of what you can do here.
-module.exports = function (app) {
-  const mongooseClient = app.get('mongooseClient');
-  const { Schema } = mongooseClient;
-  const pledgeAdmin = new Schema({
-    id: { type: String, required: true, index: true, unique: true },
-    type: { type: String, required: true, index: true },
-    typeId: { type: String },   // --> TO DO: This can be a string or an Object ?!?
-  }, {
-    timestamps: true
+import NeDB from 'nedb';
+import path from 'path';
+
+export default app => {
+  const dbPath = app.get('nedb');
+  const Model = new NeDB({
+    filename: path.join(dbPath, 'pledgeAdmins.db'),
+    autoload: true,
   });
 
-  return mongooseClient.model('pledgeAdmin', pledgeAdmin);
+  Model.ensureIndex({ fieldName: 'id', unique: true });
+
+  return Model;
 };

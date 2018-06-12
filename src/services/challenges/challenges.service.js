@@ -1,5 +1,5 @@
 // Initializes the `challenges` service on path `/authentication/challenges`
-import { Service } from 'feathers-mongoose';
+import { Service } from 'feathers-nedb';
 import errors from 'feathers-errors';
 
 import { toChecksumAddress } from 'web3-utils';
@@ -26,9 +26,8 @@ class ChallengeService extends Service {
 
   create(data, params) {
     if (!data.address) throw new errors.BadRequest('address is required');
-    params.mongoose = {
+    params.nedb = {
       upsert: true,
-      new: true
     };
 
     data.address = toChecksumAddress(data.address);
