@@ -25,7 +25,6 @@ export default (...fieldNames) => context => {
             'img',
             'iframe',
             'a',
-            'br',
           ],
           allowedAttributes: {
             iframe: ['src', 'allowfullscreen', 'frameborder'],

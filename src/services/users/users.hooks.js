@@ -5,7 +5,6 @@ import { toChecksumAddress } from 'web3-utils';
 import notifyOfChange from '../../hooks/notifyOfChange';
 import sanitizeAddress from '../../hooks/sanitizeAddress';
 import setAddress from '../../hooks/setAddress';
-import fundWallet from '../../hooks/fundWallet';
 import { updatedAt, createdAt } from '../../hooks/timestamps';
 
 const normalizeId = () => context => {
@@ -60,7 +59,7 @@ module.exports = {
     all: [commons.when(hook => hook.params.provider, commons.discard('_id'))],
     find: [],
     get: [],
-    create: [fundWallet()],
+    create: [],
     update: [notifyOfChange(...notifyParents)],
     patch: [notifyOfChange(...notifyParents)],
     remove: [notifyOfChange(...notifyParents)],
