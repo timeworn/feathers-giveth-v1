@@ -5,6 +5,7 @@ import commons from 'feathers-hooks-common';
 import sanitizeAddress from '../../hooks/sanitizeAddress';
 import setAddress from '../../hooks/setAddress';
 import { updatedAt, createdAt } from '../../hooks/timestamps';
+import addConfirmations from '../../hooks/addConfirmations';
 
 const restrict = () => context => {
   // internal call are fine
@@ -16,9 +17,14 @@ const restrict = () => context => {
   if (!user) throw new errors.NotAuthenticated();
 
   const getDonations = () => {
-    if (context.id) return service.get(context.id, { schema: 'includeTypeDetails' });
+    if (context.id)
+      return service.get(context.id, { paginate: false, schema: 'includeTypeDetails' });
     if (!context.id && context.params.query)
-      return service.find({ query: context.params.query, schema: 'includeTypeDetails' });
+      return service.find({
+        paginate: false,
+        query: context.params.query,
+        schema: 'includeTypeDetails',
+      });
     return undefined;
   };
 
@@ -261,8 +267,8 @@ module.exports = {
 
   after: {
     all: [populateSchema()],
-    find: [],
-    get: [],
+    find: [addConfirmations()],
+    get: [addConfirmations()],
     create: [],
     update: [],
     patch: [],
