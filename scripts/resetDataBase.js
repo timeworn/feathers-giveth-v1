@@ -6,9 +6,6 @@ const rimraf = require('rimraf');
 
 new Confirm('Drop database?').run().then(reset => {
   if (reset) {
-    // remove blockchain db
-    rimraf.sync('./data');
-
     mongoose.connect(mongoUrl);
     const db = mongoose.connection;
 
@@ -21,6 +18,8 @@ new Confirm('Drop database?').run().then(reset => {
     db.once('open', () => {
       console.log('Connected to Mongo');
 
+      // remove blockchain db
+      rimraf.sync('../data');
       db.dropDatabase().then(res => {
         console.log('database dropped');
         process.exit();
