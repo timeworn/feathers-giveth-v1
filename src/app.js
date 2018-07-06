@@ -1,12 +1,3 @@
-import socketsConfig from './socketsConfig';
-import logger from './utils/logger';
-
-import middleware from './middleware';
-import services from './services';
-import appHooks from './app.hooks';
-import authentication from './authentication';
-import blockchain from './blockchain';
-
 const path = require('path');
 const favicon = require('serve-favicon');
 const compress = require('compression');
@@ -19,8 +10,17 @@ const configuration = require('feathers-configuration');
 const hooks = require('feathers-hooks');
 const rest = require('feathers-rest');
 
+import socketsConfig from './socketsConfig';
+import logger from './utils/logger';
+
 const handler = require('feathers-errors/handler');
 const notFound = require('feathers-errors/not-found');
+
+import middleware from './middleware';
+import services from './services';
+import appHooks from './app.hooks';
+import authentication from './authentication';
+import blockchain from './blockchain';
 
 const mongoose = require('./mongoose');
 
@@ -30,24 +30,25 @@ const app = feathers();
 app.configure(configuration());
 
 // Enable and configure CORS, security, compression, favicon and body parsing
-const origin = app.get('env') === 'production' ? app.get('dappUrl') : '*';
+let origin;
 
-const corsOptions = {
-  origin,
-  optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
-};
+app.get('env') === 'production' ? origin = app.get('dappUrl') : origin = "*"; 
+
+var corsOptions = {
+  origin: origin,
+  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
+}
+
 
 app.use(cors(corsOptions));
 
 app.use(helmet());
 app.use(compress());
 app.use(bodyParser.json({ limit: '10mb' }));
-app.use(
-  bodyParser.urlencoded({
+app.use(bodyParser.urlencoded({
     limit: '10mb',
-    extended: true,
-  }),
-);
+    extended: true
+}));
 
 app.use(favicon(path.join(app.get('public'), 'favicon.ico')));
 // Host the public folder

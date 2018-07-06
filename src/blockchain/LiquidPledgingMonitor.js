@@ -1,5 +1,5 @@
 import logger from 'winston';
-import { keccak256, padLeft, toHex } from 'web3-utils';
+import { utils } from 'web3';
 import { Kernel } from 'giveth-liquidpledging';
 import { LPPCappedMilestone } from 'lpp-capped-milestone';
 import Admins from './Admins';
@@ -7,10 +7,9 @@ import Pledges from './Pledges';
 import Payments from './Payments';
 import CappedMilestones from './CappedMilestones';
 import createModel from '../models/blockchain.model';
-import getQueue from '../utils/processingQueue';
+import EventQueue from './EventQueue';
 
-const to = require('../utils/to');
-const { removeHexPrefix } = require('./web3Helpers');
+const { keccak256 } = utils;
 
 // Storing this in the db ensures that we don't miss any events on a restart
 const defaultConfig = {
@@ -24,17 +23,18 @@ export default class {
     this.txMonitor = txMonitor;
     this.liquidPledging = liquidPledging;
     this.events = app.service('events');
+    this.newEvents = {};
 
     this.requiredConfirmations = opts.requiredConfirmations || 0;
     this.currentBlock = 0;
 
-    this.newEventQueue = getQueue('NewEventQueue');
+    this.eventQueue = new EventQueue();
+    // use different EventQueue actual event processing
+    const eventQueue = new EventQueue();
 
-    const confirmedEventQueue = getQueue('ConfirmedEventQueue');
-
-    this.payments = new Payments(app, this.liquidPledging.$vault, confirmedEventQueue);
-    this.admins = new Admins(app, this.liquidPledging, confirmedEventQueue);
-    this.pledges = new Pledges(app, this.liquidPledging, confirmedEventQueue);
+    this.payments = new Payments(app, this.liquidPledging.$vault, eventQueue);
+    this.admins = new Admins(app, this.liquidPledging, eventQueue);
+    this.pledges = new Pledges(app, this.liquidPledging, eventQueue);
     this.cappedMilestones = new CappedMilestones(app, this.web3);
     this.model = createModel(app);
 
@@ -46,20 +46,18 @@ export default class {
   /**
    * subscribe to all events that we are interested in
    */
-  async start() {
-    const [config, blockNumber] = await Promise.all([
-      this.getConfig(),
-      this.web3.eth.getBlockNumber(),
-    ]);
-
-    this.config = config;
-    this.currentBlock = blockNumber;
-
-    this.subscribeBlockHeaders();
-    this.subscribeApps();
-    this.subscribeLP();
-    this.subscribeCappedMilestones();
-    this.subscribeVault();
+  start() {
+    Promise.all([this.getConfig(), this.web3.eth.getBlockNumber()]).then(
+      ([config, blockNumber]) => {
+        this.config = config;
+        this.currentBlock = blockNumber;
+        this.subscribeBlockHeaders();
+        this.subscribeApps();
+        this.subscribeLP();
+        this.subscribeCappedMilestones();
+        this.subscribeVault();
+      },
+    );
 
     this.txMonitor.on(this.txMonitor.LP_EVENT, e => this.newEvent(e, true));
     this.txMonitor.on(this.txMonitor.MILESTONE_EVENT, e => this.newEvent(e, true));
@@ -75,7 +73,7 @@ export default class {
         if (!block.number) return;
 
         this.currentBlock = block.number;
-        this.updateEventConfirmations();
+        this.updateConfirmations();
       })
       .on('error', err => logger.error('SUBSCRIPTION ERROR: ', err));
   }
@@ -138,7 +136,7 @@ export default class {
         keccak256('MilestoneRecipientChanged(address,uint64,address)'),
         keccak256('PaymentCollected(address,uint64)'),
       ],
-      padLeft(`0x${removeHexPrefix(this.liquidPledging.$address).toLowerCase()}`, 64),
+      utils.padLeft(`0x${this.liquidPledging.$address.substring(2).toLowerCase()}`, 64), // remove leading 0x from address
     ]).on('data', e => {
       this.newEvent(decodeEventABI(e));
     });
@@ -158,12 +156,12 @@ export default class {
 
   subscribeLogs(topics) {
     const { lastBlock } = this.config;
-    // subscribe to events for the given topics
+    // start a listener for all DestroyToken events associated with this liquidPledging contract
     return this.web3.eth
       .subscribe(
         'logs',
         {
-          fromBlock: lastBlock ? toHex(lastBlock + 1) : toHex(1), // convert to hex due to web3 bug https://github.com/ethereum/web3.js/issues/1097
+          fromBlock: lastBlock ? utils.toHex(lastBlock + 1) : utils.toHex(1), // convert to hex due to web3 bug https://github.com/ethereum/web3.js/issues/1097
           topics,
         },
         () => {},
@@ -231,147 +229,155 @@ export default class {
   }
 
   /**
-   * Handle new events as they are emitted, and add them to a queue for sequential
-   * processing of events with the same id.
+   * Handle new events as they are emitted. Here we save the event so that they can be processed
+   * later after waiting for x number of confirmations (defined in config).
    */
-  async newEvent(event, reprocess = false) {
+  newEvent(event, reprocess = false) {
     this.updateConfig(event.blockNumber);
 
-    // NOTE: we don't provide a shortcircut here b/c we want to persist all events
+    // NOTE: perissology: I'm not sure if we want to do this. If we uncomment the following code, 
+    // the events won't be stored in the events db
+    // on startup, we fetch past logs. We can immediatly process the event if the required confirmatinos have past
+    // if (event.blockNumber >= this.currentBlock - this.requiredConfirmations) {
+    //   this.handleEvent(event);
+    //   return;
+    // }
 
-    const { address, signature, transactionHash, raw } = event;
-    // TODO why do we generate a hash? Is the event id not unique with multiple events / tx?
-    const hash = keccak256(address + signature + transactionHash + JSON.stringify(raw));
+    const { id, address, signature, transactionHash, raw } = event;
+    const hash = utils.keccak256(address + signature + transactionHash + JSON.stringify(raw));
 
-    // during a reorg, the same event can occur in quick succession, so we add everything to a
-    // queue so they are processed synchronously
-    this.newEventQueue.add(hash, () => this.processNewEvent(hash, event, reprocess));
+    // during a reorg, the same event can occur in quick succession, so we cache the event until
+    // it has been successfully saved
+    if (!this.newEvents[transactionHash]) this.newEvents[transactionHash] = [];
+    this.newEvents[transactionHash].push(Object.assign({}, event, { hash }));
 
-    // start processing the queued events if we haven't already
-    if (!this.newEventQueue.isProcessing(hash)) this.newEventQueue.purge(hash);
-  }
+    const removeFromCache = () => {
+      const i = this.newEvents[transactionHash].findIndex(ev => ev.hash === hash && ev.id === id);
+      this.newEvents[transactionHash].splice(i, 1);
+      if (this.newEvents[transactionHash].length === 0) delete this.newEvents[transactionHash];
+    };
 
-  /**
-   * Here we save the event so that they can be processed
-   * later after waiting for x number of confirmations (defined in config).
-   *
-   * @param {string} hash a unique identifier for this event
-   * @param {object} event the web3 log to process
-   * @param {boolean} reprocess reprocess this event if it has already been confirmed?
-   */
-  async processNewEvent(hash, event, reprocess) {
-    const { id, raw } = event;
-    const data = await this.events.find({ paginate: false, query: { id } });
+    this.events.find({ paginate: false, query: { id } }).then(data => {
+      if (data.length === 0) {
+        // re-org may have occurred, check if we have a cached event
+        const existingEvent = this.newEvents[transactionHash].find(
+          ev => ev.hash === hash && ev.id !== id,
+        );
 
-    // this is a new event so we create it
-    if (data.length === 0) {
-      await this.events.create(Object.assign({}, event, { confirmations: 0 }));
-      this.newEventQueue.purge(hash);
-      // await this.eventQueue.purge(hash);
-      return;
-    }
+        // if we have a cached event, add this one to the queue so it will be processed
+        // after the event it is replacing
+        if (existingEvent) {
+          this.eventQueue.add(hash, () => this.newEvent(event));
+        } else {
+          this.events.create(Object.assign({}, event, { confirmations: 0 })).then(() => {
+            removeFromCache();
+            this.eventQueue.purge(hash);
+          });
+        }
+        return;
+      }
 
-    // shouldn't have more then 1 event
-    if (data.length > 1) {
-      logger.error('LiquidPledgingMonitor.newEvent found more then 1 matching event.', event, data);
-    }
-
-    // An event w/ the same id already exists
-    const oldEvent = data[0];
-
-    const mutation = Object.assign({}, oldEvent, event);
-
-    if (oldEvent.confirmed) {
-      // log an error if this event is already confirmed and we aren't reprocessing it
-      // this shouldn't happen and is most likely because a large re-org occurred
-      if (!reprocess) {
+      if (data.length > 1) {
         logger.error(
-          'RE-ORG ERROR: LiquidPledgingMonitor.newEvent was called, however the matching event has already been confirmed. Consider increasing the requiredConfirmations.',
+          'LiquidPledgingMonitor.newEvent found more then 1 matching event.',
           event,
-          oldEvent,
+          data,
         );
       }
 
-      // if we are reprocessing, or the event data has changed, we need to set confirmed = false
-      // so this event is picked up for processing
-      if (reprocess || JSON.stringify(oldEvent.raw) !== JSON.stringify(raw)) {
-        // TODO the event data is different then prevously processed. We need to update the models in feathers.
-        // need to test this, but maybe just re-processing the event is enough
-        mutation.confirmed = false;
+      const oldEvent = data[0];
+
+      const mutation = Object.assign({}, oldEvent, event);
+      if (oldEvent.confirmed) {
+        if (!reprocess) {
+          logger.error(
+            'RE-ORG ERROR: LiquidPledgingMonitor.newEvent was called, however the matching event has already been confirmed. Consider increasing the requiredConfirmations.',
+            event,
+            oldEvent,
+          );
+        }
+
+        if (reprocess || JSON.stringify(oldEvent.raw) !== JSON.stringify(raw)) {
+          // TODO the event data is different then prevously processed. We need to update the models in feathers.
+          // need to test this, but maybe just re-processing the event is enough
+          mutation.confirmed = false;
+        }
       }
-    }
 
-    if (mutation.confirmations) {
-      const diff = mutation.blockNumber - oldEvent.blockNumber;
+      if (mutation.confirmations) {
+        const diff = mutation.blockNumber - oldEvent.blockNumber;
 
-      if (diff > 0) {
-        mutation.confirmations += diff;
-      } else if (diff < 0) {
-        mutation.confirmations -= diff;
+        if (diff > 0) {
+          mutation.confirmations += diff;
+        } else if (diff < 0) {
+          mutation.confirmations -= diff;
+        }
       }
-    }
 
-    await this.events.patch(oldEvent._id, mutation);
-    this.newEventQueue.purge(hash);
+      this.events.patch(oldEvent._id, mutation).then(() => removeFromCache());
+    });
   }
 
-  /**
-   * Finds all un-confirmed events, updates the # of confirmations and initiates
-   * processing of the event if the requiredConfirmations has been reached
-   */
-  async updateEventConfirmations() {
+  updateConfirmations() {
     const { currentBlock } = this;
 
-    // all unconfirmed events sorted by txHash & logIndex
-    const confirmedQuery = { $or: [{ confirmed: false }, { confirmed: { $exists: false } }] };
-    const query = Object.assign(
-      {
-        $sort: { transactionHash: 1, logIndex: 1 },
-      },
-      confirmedQuery,
-    );
-
     // fetch all un-confirmend events
-    const [err, data] = await to(this.events.find({ paginate: false, query }));
-    if (err) {
-      logger.error('Error fetching un-confirmed events', err);
-      return;
-    }
+    this.events
+      .find({
+        paginate: false,
+        query: {
+          $or: [{ confirmed: false }, { confirmed: { $exists: false } }],
+          $sort: { transactionHash: 1, logIndex: 1 },
+        },
+      })
+      .then(data => {
+        const updates = [];
 
-    // sort the events into buckets by # of confirmations
-    const eventsByConfirmations = data.reduce((val, event) => {
-      const diff = currentBlock - event.blockNumber;
-      const c = diff >= this.requiredConfirmations ? this.requiredConfirmations : diff;
+        data.forEach(event => {
+          const diff = currentBlock - event.blockNumber;
+          const c = diff >= this.requiredConfirmations ? this.requiredConfirmations : diff;
 
-      if (this.requiredConfirmations === 0 || c > 0) {
-        // eslint-ignore-next-line no-param-reassign
-        if (!val[c]) val[c] = [];
-        val[c].push(event);
-      }
-      return val;
-    }, []);
-
-    // updated the # of confirmations for the events and proceess the event if confirmed
-    eventsByConfirmations.forEach((events, confirmations) => {
-      if (confirmations === this.requiredConfirmations) {
-        const q = Object.assign({}, confirmedQuery, {
-          blockNumber: {
-            $lte: currentBlock - this.requiredConfirmations,
-          },
+          if (this.requiredConfirmations === 0 || c > 0) {
+            if (!updates[c]) updates[c] = [];
+            updates[c].push(event);
+          }
         });
 
-        this.events.patch(null, { confirmed: true, confirmations }, { query: q });
+        // updated the # of confirmations
+        updates.forEach((events, confirmations) => {
+          if (confirmations === this.requiredConfirmations) {
+            const query = {
+              $and: [
+                {
+                  $or: [
+                    { confirmed: false },
+                    {
+                      confirmed: {
+                        $exists: false,
+                      },
+                    },
+                  ],
+                },
+                {
+                  blockNumber: {
+                    $lte: currentBlock - this.requiredConfirmations,
+                  },
+                },
+              ],
+            };
 
-        // now that the event is confirmed, handle the event
-        events.forEach(event => this.handleEvent(event));
-      } else {
-        this.events.patch(
-          null,
-          { confirmations },
-          { query: { blockNumber: currentBlock - this.requiredConfirmations + confirmations } },
-        );
-      }
-    });
+            this.events.patch(null, { confirmed: true, confirmations }, { query });
+            // now that the event is confirmed, handle the event
+            events.forEach(event => this.handleEvent(event));
+          } else {
+            this.events.patch(
+              null,
+              { confirmations },
+              { query: { blockNumber: currentBlock - this.requiredConfirmations + confirmations } },
+            );
+          }
+        });
+      });
   }
 
   handleEvent(event) {
