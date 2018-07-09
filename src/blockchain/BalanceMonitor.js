@@ -1,94 +1,65 @@
 const logger = require('winston');
-const { lockNonceAndSendTransaction } = require('./helpers');
+const fundAccountIfLow = require('./lib/fundAccountIfLow');
+const { batchAndExecuteRequests, addAccountToWallet } = require('./lib/web3Helpers');
 
-// recursively execute all requests in batches of 100
-function batchAndExecuteRequests(web3, requests) {
-  if (requests.length === 0) return;
-  const batch = new web3.BatchRequest();
-  requests.splice(0, 100).forEach(r => batch.add(r));
-  batch.execute();
+/**
+ * Factory function to create an object that will monitor the balance for
+ * existing users and topup their accounts if their balance is low
+ *
+ * @param {object} app feathers app instance
+ */
+function balanceMonitor(app) {
+  const web3 = app.getWeb3();
 
-  batchAndExecuteRequests(web3, requests);
-}
+  const {
+    ethFunderInterval: pollTime,
+    ethFunderPK,
+    walletFundingTimeout: fundingTimeout,
+    walletFundingBlacklist: blacklist,
+  } = app.get('blockchain');
 
-module.exports = class {
-  constructor(app, web3) {
-    this.app = app;
-    this.web3 = web3;
+  const hasAccount = !!addAccountToWallet(web3, ethFunderPK);
 
-    const blockchain = app.get('blockchain');
-    this.minBal = blockchain.walletMinBalance;
-    this.seedAmount = blockchain.walletSeedAmount;
-    this.pollTime = blockchain.ethFunderInterval;
-    this.fundingTimeout = blockchain.walletFundingTimeout;
-    this.blacklist = blockchain.walletFundingBlacklist;
-
-    this.isRunning = false;
-
-    const { ethFunderPK } = blockchain;
-    if (ethFunderPK) {
-      this.account = web3.eth.accounts.privateKeyToAccount(ethFunderPK);
-      web3.eth.accounts.wallet.add(this.account);
-    }
-  }
-
-  start() {
-    if (!this.account) {
-      logger.warn('Not starting BalanceMonitor as no ethFunderPK was provided');
-      return;
-    }
-
-    const poll = () => {
-      this.fundAccountsWithLowBalance();
-      setTimeout(poll, this.pollTime);
-    };
-
-    poll();
-  }
-
-  async fundAccountsWithLowBalance() {
+  async function fundAccountsWithLowBalance() {
     // fetch all users that are not blacklisted and were lastFunded before the fundingTimeout
     const query = {
       address: {
-        $nin: this.blacklist,
+        $nin: blacklist,
       },
       $or: [
         { lastFunded: { $exists: false } },
-        { lastFunded: { $lte: new Date().getTime() - this.fundingTimeout } },
+        { lastFunded: { $lte: new Date().getTime() - fundingTimeout } },
       ],
     };
 
-    const usersToCheck = await this.app.service('users').find({ paginate: false, query });
+    const usersToCheck = await app.service('users').find({ paginate: false, query });
 
     if (usersToCheck.length === 0) return;
 
-    const handleBalanceResponse = user => (err, balance) => {
-      if (err) logger.error('Error fetching balance for address: ', user.address, err);
-      this.fundAccountIfLow(user, balance);
+    const handleBalanceResponse = address => (err, balance) => {
+      if (err) logger.error('Error fetching balance for address: ', address, err);
+      fundAccountIfLow(app, address, balance);
     };
 
     // generate a request to execute to fetch each users balance
-    const balRequests = usersToCheck.map(user =>
-      this.web3.eth.getBalance.request(user.address, 'pending', handleBalanceResponse(user)),
+    const balRequests = usersToCheck.map(({ address }) =>
+      web3.eth.getBalance.request(address, 'pending', handleBalanceResponse(address)),
     );
 
-    batchAndExecuteRequests(this.web3, balRequests);
+    batchAndExecuteRequests(web3, balRequests);
   }
 
-  fundAccountIfLow(user, currentBal) {
-    const { toBN } = this.web3.utils;
+  return {
+    start() {
+      if (!hasAccount) {
+        logger.warn('Not starting BalanceMonitor as ethFunderPK is missing from the config');
+        return;
+      }
 
-    if (toBN(currentBal).lt(toBN(this.minBal))) {
-      lockNonceAndSendTransaction(this.web3, this.web3.eth.sendTransaction, {
-        from: this.account.address,
-        to: user.address,
-        value: this.seedAmount,
-        gas: 21000,
-      });
+      setInterval(fundAccountsWithLowBalance, pollTime);
+      fundAccountsWithLowBalance();
+    },
+  };
+}
 
-      this.app.service('users').patch(user.address, {
-        lastFunded: new Date(),
-      });
-    }
-  }
-};
+module.exports = balanceMonitor;
