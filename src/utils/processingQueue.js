@@ -2,9 +2,6 @@ const logger = require('winston');
 const queue = require('./queue');
 const processor = require('./processor');
 
-/**
- * Factory function for a queue that tracks which id's are currently being processed
- */
 const processingQueue = target => {
   const q = queue(target);
   const p = processor({});
@@ -23,11 +20,13 @@ const processingQueue = target => {
   });
 };
 
-/**
- * create a new ProcessingQueue
- */
-const factory = name => {
-  const q = processingQueue({});
+// cache queues by name
+const queues = {};
+
+function getQueue(name) {
+  if (queues[name]) return queues[name];
+
+  const q = processingQueue({ name });
 
   // for debugging purposes. check if there are any stuck txs every 5 mins
   setInterval(() => {
@@ -35,7 +34,12 @@ const factory = name => {
       logger.info(`current "${name}" QUEUE status ->`, JSON.stringify(q.get(), null, 2));
     }
   }, 1000 * 60 * 5);
-  return q;
-};
 
-module.exports = factory;
+  queues[name] = q;
+  return q;
+}
+
+module.exports = {
+  getQueue,
+  processingQueue,
+};

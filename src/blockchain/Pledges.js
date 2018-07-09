@@ -1,5 +1,5 @@
 import logger from 'winston';
-import { toBN } from 'web3-utils';
+import { hexToNumber, toBN } from 'web3-utils';
 import { pledgeState } from './helpers';
 import errWrapper from '../utils/to';
 
@@ -134,6 +134,9 @@ class Pledges {
           // a donation to the same delegate/project for the same amount multiple times. Currently there
           // no way to tell which donation was acted on if the txHash didn't match, so we just return the first
           if (filteredDonationsByAmount.length > 0) return filteredDonationsByAmount[0];
+
+          // FIXME: The amounts don't match because the params are the same so LPP puts all of the money in one pledge whereas in UI it's multiple donations
+          console.log('Amount donation: ', donations.data[0].amount, ' Amount pledge:', amount);
 
           // TODO is this comment only applicable while we don't support splits?
           // this is probably a split which happened outside of the ui

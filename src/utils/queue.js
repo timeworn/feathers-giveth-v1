@@ -45,11 +45,10 @@ const queueMixin = target => {
       if (queued.length > 0) {
         logger.debug('purging queue ->', id);
 
-        const val = await queued.splice(0, 1)[0](); // remove first function from list and run it
+        await queued.splice(0, 1)[0](); // remove first function from list and run it
 
         logger.debug('returned from purge');
         if (queue[id] && queue[id].length === 0) delete queue[id];
-        return val; // eslint-disable-line consistent-return
       }
     },
   });
