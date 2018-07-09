@@ -1,23 +1,23 @@
 const logger = require('winston');
 const { hexToNumberString } = require('web3-utils');
-
 /**
- * object factory to keep feathers cache in sync with LPVault payments contracts
+ * class to keep feathers cache in sync with Vault payments
  */
-const payments = (app, queue) => ({
-  /**
-   * handle `AuthorizePayment` events
-   *
-   * @param {object} event Web3 event object
-   * @param {boolean} isQueued is this function being called from a queue
-   */
+class Payments {
+  constructor(app, vault, eventQueue) {
+    this.app = app;
+    this.web3 = vault.$web3;
+    this.vault = vault;
+    this.queue = eventQueue;
+  }
+
   async authorizePayment(event, isQueued = false) {
     if (event.event !== 'AuthorizePayment') {
       throw new Error('authorizePayment only handles AuthorizePayment events');
     }
 
-    if (!isQueued && queue.isProcessing(event.transactionHash)) {
-      queue.add(event.transactionHash, () => this.authorizePayment(event, true));
+    if (!isQueued && this.queue.isProcessing(event.transactionHash)) {
+      this.queue.add(event.transactionHash, () => this.authorizePayment(event, true));
       return;
     }
 
@@ -26,7 +26,7 @@ const payments = (app, queue) => ({
     const pledgeId = hexToNumberString(returnValues.ref);
     const query = { pledgeId };
 
-    const donations = app.service('donations');
+    const donations = this.app.service('donations');
 
     try {
       const data = await donations.find({ paginate: false, query });
@@ -38,11 +38,11 @@ const payments = (app, queue) => ({
 
       await donations.patch(null, { paymentId }, { query });
 
-      if (isQueued) queue.purge(transactionHash);
+      if (isQueued) this.queue.purge(transactionHash);
     } catch (error) {
       logger.error('authorizePayment error ->', error);
     }
-  },
-});
+  }
+}
 
-module.exports = payments;
+module.exports = Payments;
