@@ -1,11 +1,12 @@
 // Initializes the `challenges` service on path `/authentication/challenges`
 import { Service } from 'feathers-mongoose';
-import errors from '@feathersjs/errors';
+import errors from 'feathers-errors';
 
 import { toChecksumAddress } from 'web3-utils';
 
 import createModel from '../../models/challenges.model';
 import hooks from './challenges.hooks';
+import filters from './challenges.filters';
 
 // TODO clean this up and move to separate package feathers-authentication-web3
 
@@ -80,4 +81,8 @@ export default function() {
   const service = app.service('authentication/challenges');
 
   service.hooks(hooks);
+
+  if (service.filter) {
+    service.filter(filters);
+  }
 }

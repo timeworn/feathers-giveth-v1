@@ -1,4 +1,4 @@
-import errors from '@feathersjs/errors';
+import errors from 'feathers-errors';
 import { setByDot } from 'feathers-hooks-common';
 
 export default field => context => {

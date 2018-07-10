@@ -1,5 +1,5 @@
 import commons from 'feathers-hooks-common';
-import errors from '@feathersjs/errors';
+import errors from 'feathers-errors';
 
 const checkReviewer = context => {
   if (!context.app.get('useReviewerWhitelist')) {

@@ -1,3 +1,3 @@
-import socketio from '@feathersjs/socketio';
+import socketio from 'feathers-socketio';
 
 export default socketio();

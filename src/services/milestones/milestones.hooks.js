@@ -1,5 +1,5 @@
 import commons from 'feathers-hooks-common';
-import errors from '@feathersjs/errors';
+import errors from 'feathers-errors';
 import logger from 'winston';
 import { utils } from 'web3';
 import BigNumber from 'bignumber.js';
@@ -52,12 +52,11 @@ const getApprovedKeys = (milestone, data, user) => {
     'conversionRate',
     'items',
     'message',
-    'proofItems',
     'image',
   ];
 
   // Fields that can be editted once milestone stored on the blockchain
-  const editMilestoneKeysOnChain = ['title', 'description', 'message', 'proofItems', 'mined'];
+  const editMilestoneKeysOnChain = ['title', 'description', 'message', 'mined'];
 
   switch (milestone.status) {
     case MILESTONE.PROPOSED:
@@ -68,7 +67,7 @@ const getApprovedKeys = (milestone, data, user) => {
         }
         logger.info(`Accepting proposed milestone with id: ${milestone._id} by: ${user.address}`);
 
-        return ['txHash', 'status', 'mined', 'ownerAddress', 'message', 'proofItems'];
+        return ['txHash', 'status', 'mined', 'ownerAddress', 'message'];
       }
 
       // Reject proposed milestone by Campaign Manager
@@ -78,7 +77,7 @@ const getApprovedKeys = (milestone, data, user) => {
         }
         logger.info(`Rejecting proposed milestone with id: ${milestone._id} by: ${user.address}`);
 
-        return ['status', 'message', 'proofItems'];
+        return ['status', 'message'];
       }
 
       // Editing milestone can be done by Milestone or Campaing Manager
@@ -118,7 +117,7 @@ const getApprovedKeys = (milestone, data, user) => {
           throw new errors.Forbidden('Only the Milestone Manager can repropose rejected milestone');
         }
         logger.info(`Reproposing rejected milestone with id: ${milestone._id} by: ${user.address}`);
-        return ['status', 'message', 'proofItems'];
+        return ['status', 'message'];
       }
       break;
 
@@ -132,7 +131,7 @@ const getApprovedKeys = (milestone, data, user) => {
         }
         logger.info(`Marking milestone as complete. Milestone id: ${milestone._id}`);
 
-        return ['status', 'mined', 'message', 'proofItems'];
+        return ['status', 'mined', 'message'];
       }
 
       // Cancel milestone by Campaign or Milestone Reviewer
@@ -143,7 +142,7 @@ const getApprovedKeys = (milestone, data, user) => {
           );
         }
 
-        return ['txHash', 'status', 'mined', 'prevStatus', 'message', 'proofItems'];
+        return ['txHash', 'status', 'mined', 'prevStatus', 'message'];
       }
 
       // Editing milestone can be done by Campaign or Milestone Manager
@@ -165,7 +164,7 @@ const getApprovedKeys = (milestone, data, user) => {
           );
         }
         logger.info(`Approving milestone complete with id: ${milestone._id} by: ${user.address}`);
-        return ['txHash', 'status', 'mined', 'prevStatus', 'message', 'proofItems'];
+        return ['txHash', 'status', 'mined', 'prevStatus', 'message'];
       }
 
       // Reject milestone completed by Campaign or Milestone Reviewer
@@ -176,7 +175,7 @@ const getApprovedKeys = (milestone, data, user) => {
           );
         }
         logger.info(`Rejecting milestone complete with id: ${milestone._id} by: ${user.address}`);
-        return ['status', 'mined', 'message', 'proofItems'];
+        return ['status', 'mined', 'message'];
       }
 
       // Cancel milestone by Campaign or Milestone Reviewer
@@ -191,7 +190,7 @@ const getApprovedKeys = (milestone, data, user) => {
             user.address
           }`,
         );
-        return ['txHash', 'status', 'mined', 'prevStatus', 'message', 'proofItems'];
+        return ['txHash', 'status', 'mined', 'prevStatus', 'message'];
       }
 
       // Editing milestone can be done by Milestone or Campaign Manager
@@ -304,7 +303,6 @@ const sendNotification = () => async context => {
       .create({
         milestoneId: data._id,
         message: data.message,
-        items: data.proofItems,
         messageContext,
         user,
         txHash,

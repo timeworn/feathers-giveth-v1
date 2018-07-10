@@ -2,6 +2,7 @@
 const createService = require('feathers-mongoose');
 const createModel = require('../../models/campaigns.model').default;
 const hooks = require('./campaigns.hooks');
+const filters = require('./campaigns.filters');
 
 module.exports = function registerService() {
   const app = this;
@@ -21,4 +22,8 @@ module.exports = function registerService() {
   const service = app.service('campaigns');
 
   service.hooks(hooks);
+
+  if (service.filter) {
+    service.filter(filters);
+  }
 };

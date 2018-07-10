@@ -1,5 +1,5 @@
 import commons from 'feathers-hooks-common';
-import errors from '@feathersjs/errors';
+import errors from 'feathers-errors';
 import { restrictToOwner } from 'feathers-authentication-hooks';
 import sanitizeAddress from '../../hooks/sanitizeAddress';
 import setAddress from '../../hooks/setAddress';
