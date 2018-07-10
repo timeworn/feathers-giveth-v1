@@ -2,6 +2,7 @@
 const createService = require('feathers-mongoose');
 const createModel = require('../../models/donations.model');
 const hooks = require('./donations.hooks');
+const filters = require('./donations.filters');
 
 // If a donation has a intendedProject & the commitTime has passed, we need to update the donation to reflect
 // that the intendedProject is now the owner
@@ -67,4 +68,8 @@ module.exports = function() {
   pollForCommittedDonations(service);
 
   service.hooks(hooks);
+
+  if (service.filter) {
+    service.filter(filters);
+  }
 };

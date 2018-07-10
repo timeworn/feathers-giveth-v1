@@ -2,6 +2,7 @@
 const createService = require('feathers-mongoose');
 const createModel = require('../../models/ethconversion.model');
 const hooks = require('./ethconversion.hooks');
+const filters = require('./ethconversion.filters');
 
 module.exports = function() {
   const app = this;
@@ -21,4 +22,8 @@ module.exports = function() {
   const service = app.service('ethconversion');
 
   service.hooks(hooks);
+
+  if (service.filter) {
+    service.filter(filters);
+  }
 };

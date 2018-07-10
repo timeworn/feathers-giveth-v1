@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import errors from '@feathersjs/errors';
+import errors from 'feathers-errors';
 import commons from 'feathers-hooks-common';
 
 import sanitizeAddress from '../../hooks/sanitizeAddress';
