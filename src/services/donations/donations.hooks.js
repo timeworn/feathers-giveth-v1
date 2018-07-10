@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import errors from 'feathers-errors';
+import errors from '@feathersjs/errors';
 import commons from 'feathers-hooks-common';
 
 import sanitizeAddress from '../../hooks/sanitizeAddress';
@@ -195,7 +195,7 @@ const joinDonationRecipient = (item, context) => {
     )
     .then(
       context =>
-        item.intendedProject > 0
+        Number(item.intendedProject) > 0
           ? commons.populate({
               schema: poSchemas[`po-${item.intendedProjectType.toLowerCase()}-intended`],
             })(context)
