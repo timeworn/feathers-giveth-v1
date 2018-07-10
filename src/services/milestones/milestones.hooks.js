@@ -293,7 +293,7 @@ const restrict = () => context => {
  * Conditionally sends a notification after patch or create
  *
  * */
-const sendNotification = () => async context => {
+const sendNotification = () => context => {
   const { data, app, result, params } = context;
   const { user } = params;
 
@@ -316,19 +316,20 @@ const sendNotification = () => async context => {
    * */
   if (context.method === 'create') {
     if (result.status === 'proposed') {
-      try {
-        const campaign = await app.service('campaigns').get(data.campaignId);
-
-        Notifications.milestoneProposed(app, {
-          recipient: campaign.owner.email,
-          user: campaign.owner.name,
-          milestoneTitle: data.title,
-          campaignTitle: campaign.title,
-          amount: data.maxAmount,
-        });
-      } catch (e) {
-        logger.error('error sending proposed milestone notification', e);
-      }
+      // find the campaign admin and send a notification that milestone is proposed
+      app
+        .service('users')
+        .find({ query: { address: data.campaignOwnerAddress } })
+        .then(users => {
+          Notifications.milestoneProposed(app, {
+            recipient: users.data[0].email,
+            user: users.data[0].name,
+            milestoneTitle: data.title,
+            campaignTitle: result.campaign.title,
+            amount: data.maxAmount,
+          });
+        })
+        .catch(e => logger.error('error sending proposed milestone notification', e));
     }
   }
 
