@@ -20,13 +20,11 @@ const processingQueue = target => {
   });
 };
 
-// cache queues by name
-const queues = {};
-
-function getQueue(name) {
-  if (queues[name]) return queues[name];
-
-  const q = processingQueue({ name });
+/**
+ * create a new ProcessingQueue
+ */
+const factory = name => {
+  const q = processingQueue({});
 
   // for debugging purposes. check if there are any stuck txs every 5 mins
   setInterval(() => {
@@ -34,12 +32,7 @@ function getQueue(name) {
       logger.info(`current "${name}" QUEUE status ->`, JSON.stringify(q.get(), null, 2));
     }
   }, 1000 * 60 * 5);
-
-  queues[name] = q;
   return q;
-}
-
-module.exports = {
-  getQueue,
-  processingQueue,
 };
+
+module.exports = factory;

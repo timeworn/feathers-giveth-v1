@@ -2,7 +2,20 @@
 //
 // See http://mongoosejs.com/docs/models.html
 // for more of what you can do here.
-module.exports = function Milestone(app) {
+const MilestoneStatus = {
+  PROPOSED: 'Proposed',
+  REJECTED: 'Rejected',
+  PENDING: 'Pending',
+  IN_PROGRESS: 'InProgress',
+  NEEDS_REVIEW: 'NeedsReview',
+  COMPLETED: 'Completed',
+  CANCELED: 'Canceled',
+  PAYING: 'Paying',
+  PAID: 'Paid',
+  FAILED: 'Failed',
+};
+
+function Milestone(app) {
   const mongooseClient = app.get('mongooseClient');
   const { Schema } = mongooseClient;
 
@@ -59,4 +72,9 @@ module.exports = function Milestone(app) {
   );
 
   return mongooseClient.model('milestone', milestone);
+}
+
+module.exports = {
+  MilestoneStatus,
+  createModel: Milestone,
 };
