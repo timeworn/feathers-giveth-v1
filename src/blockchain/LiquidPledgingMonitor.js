@@ -345,7 +345,7 @@ export default class {
         const confirmedQuery = { $or: [{ confirmed: false }, { confirmed: { $exists: false } }] };
         const query = Object.assign(
           {
-            $sort: { blockNumber: 1, transactionHash: 1, logIndex: 1 },
+            $sort: { transactionHash: 1, logIndex: 1 },
           },
           confirmedQuery,
         );

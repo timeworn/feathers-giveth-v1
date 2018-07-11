@@ -9,9 +9,7 @@ export default function() {
       message += ` - ${hook.error.message}`;
     }
 
-    if (hook.params.provider && hook.type !== 'error') {
-      logger.debug(message);
-    } else if (hook.params.provider && hook.type === 'error') {
+    if (hook.params.provider) {
       logger.info(message);
     } else {
       logger.debug(`INTERNAL_CALL -> ${message}`);
