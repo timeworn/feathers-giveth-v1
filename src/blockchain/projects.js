@@ -93,8 +93,11 @@ const projects = (app, liquidPledging) => {
     return data[0];
   }
 
-  async function createMilestone(project, projectId, milestone, tx) {
-    const campaign = await getCampaignById(project.parentProject);
+  async function createMilestone(project, projectId, milestone, txHash) {
+    const [campaign, tx] = await Promise.all([
+      getCampaignById(project.parentProject),
+      web3.eth.getTransaction(txHash),
+    ]);
 
     if (!campaign) {
       logger.warn(
@@ -111,6 +114,7 @@ const projects = (app, liquidPledging) => {
           title: project.name,
           description: 'Missing Description... Added outside of UI',
           maxAmount: milestone.maxAmount,
+          ownerAddress: tx.from,
           reviewerAddress: milestone.reviewer,
           recipientAddress: milestone.recipient,
           campaignReviewerAddress: milestone.campaignReviewer,
@@ -122,16 +126,14 @@ const projects = (app, liquidPledging) => {
           date,
           fiatAmount: milestone.maxAmount,
           conversionRate: 1,
-          txHash: tx.transactionHash,
+          txHash,
           pluginAddress: project.plugin,
           totalDonated: '0',
           donationCount: 0,
           mined: true,
-        },
-        {
-          eventTxHash: tx.transactionHash,
           performedByAddress: tx.from,
         },
+        { eventTxHash: txHash },
       );
     } catch (err) {
       // milestones service will throw BadRequest error if reviewer/owner isn't whitelisted
@@ -199,37 +201,18 @@ const projects = (app, liquidPledging) => {
         cappedMilestone.reviewer(),
         cappedMilestone.campaignReviewer(),
         cappedMilestone.recipient(),
-        cappedMilestone.milestoneManager(),
         cappedMilestone.completed(),
         liquidPledging.isProjectCanceled(projectId),
-        web3.eth.getTransaction(txHash),
       ]);
       let milestone = responses.splice(0, 1)[0];
-      const [
-        maxAmount,
-        reviewer,
-        campaignReviewer,
-        recipient,
-        manager,
-        completed,
-        canceled,
-        tx,
-      ] = responses;
+      const [maxAmount, reviewer, campaignReviewer, recipient, completed, canceled] = responses;
 
       if (!milestone) {
         milestone = await createMilestone(
           project,
           projectId,
-          {
-            maxAmount,
-            recipient,
-            reviewer,
-            campaignReviewer,
-            ownerAddress: manager,
-            completed,
-            canceled,
-          },
-          tx,
+          { maxAmount, recipient, reviewer, campaignReviewer, completed, canceled },
+          txHash,
         );
 
         if (milestone) return milestone;
@@ -248,17 +231,14 @@ const projects = (app, liquidPledging) => {
           maxAmount,
           reviewerAddress: reviewer,
           campaignReviewerAddress: campaignReviewer,
-          ownerAddress: manager,
           recipientAddress: recipient,
           title: project.name,
           pluginAddress: project.plugin,
           status: milestoneStatus(completed, canceled),
           mined: true,
+          performedByAddress: milestone.ownerAddress,
         },
-        {
-          eventTxHash: txHash,
-          performedByAddress: tx.from,
-        },
+        { eventTxHash: txHash },
       );
     } catch (error) {
       logger.error('addMilestone error: ', error);

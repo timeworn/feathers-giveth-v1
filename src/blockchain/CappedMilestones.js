@@ -19,7 +19,6 @@ const cappedMilestones = app => {
       // only interested in milestones we are aware of.
       if (data.length === 1) {
         const m = data[0];
-        const { from } = await app.getWeb3().eth.getTransaction(txHash);
 
         await milestones.patch(
           m._id,
@@ -27,10 +26,7 @@ const cappedMilestones = app => {
             status,
             mined: true,
           },
-          {
-            eventTxHash: txHash,
-            performedByAddress: from,
-          },
+          { eventTxHash: txHash },
         );
       }
     } catch (e) {

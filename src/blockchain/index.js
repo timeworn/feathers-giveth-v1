@@ -1,11 +1,10 @@
 const balanceMonitor = require('./balanceMonitor');
 const failedTxMonitor = require('./failedTxMonitor');
-const pledgeNormalizer = require('./normalizer');
 const eventWatcher = require('./watcher');
 const eventHandler = require('./lib/eventHandler');
 const { getWeb3 } = require('./lib/web3Helpers');
 
-module.exports = function init() {
+module.exports = function() {
   const app = this;
 
   const web3 = getWeb3(app);
@@ -16,9 +15,6 @@ module.exports = function init() {
 
   const balMonitor = balanceMonitor(app);
   balMonitor.start();
-
-  const normalizer = pledgeNormalizer(app);
-  normalizer.start();
 
   // const txMonitor = failedTxMonitor(app, eventHandler);
   // txMonitor.start();

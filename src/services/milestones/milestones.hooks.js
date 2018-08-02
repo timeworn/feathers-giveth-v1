@@ -45,7 +45,17 @@ const getApprovedKeys = (milestone, data, user) => {
   ];
 
   // Fields that can be editted once milestone stored on the blockchain
-  const editMilestoneKeysOnChain = ['title', 'description', 'message', 'proofItems', 'mined'];
+  const editMilestoneKeysOnChain = [
+    'title',
+    'description',
+    'message',
+    'proofItems',
+    'mined',
+    'fullyFunded',
+    'donationCount',
+    'totalDonated',
+    'peopleCount',
+  ];
 
   switch (milestone.status) {
     case MilestoneStatus.PROPOSED:
@@ -284,21 +294,19 @@ const restrict = () => context => {
  * */
 const sendNotification = () => async context => {
   const { data, app, result, params } = context;
-  const { performedByAddress } = params;
+  const { user } = params;
 
-  const _createConversion = messageContext => {
+  const _createConversion = (app, data, txHash, messageContext, user) => {
     app
       .service('conversations')
-      .create(
-        {
-          milestoneId: result._id,
-          message: result.message,
-          items: result.proofItems,
-          messageContext,
-          txHash: context.params.eventTxHash,
-        },
-        { performedByAddress },
-      )
+      .create({
+        milestoneId: data._id,
+        message: data.message,
+        items: data.proofItems,
+        messageContext,
+        user,
+        txHash,
+      })
       .then(res => logger.info('created conversation!', res._id))
       .catch(e => logger.error('could not create conversation', e));
   };
@@ -334,7 +342,7 @@ const sendNotification = () => async context => {
       result.prevStatus === MilestoneStatus.PROPOSED &&
       result.status === MilestoneStatus.IN_PROGRESS
     ) {
-      _createConversion('proposedAccepted');
+      _createConversion(app, result, context.params.eventTxHash, 'proposedAccepted', user);
 
       // find the milestone owner and send a notification that his/her proposed milestone is approved
       Notifications.proposedMilestoneAccepted(app, {
@@ -349,7 +357,7 @@ const sendNotification = () => async context => {
 
     if (result.status === MilestoneStatus.NEEDS_REVIEW) {
       // find the milestone reviewer owner and send a notification that this milestone is been marked as complete and needs review
-      _createConversion(result.status);
+      _createConversion(app, result, context.params.eventTxHash, result.status, user);
 
       Notifications.milestoneRequestReview(app, {
         recipient: result.reviewer.email,
@@ -361,7 +369,7 @@ const sendNotification = () => async context => {
     }
 
     if (result.status === MilestoneStatus.COMPLETED && result.mined) {
-      _createConversion(result.status);
+      _createConversion(app, result, context.params.eventTxHash, result.status, user);
 
       // find the milestone owner and send a notification that his/her milestone is marked complete
       Notifications.milestoneMarkedCompleted(app, {
@@ -377,7 +385,7 @@ const sendNotification = () => async context => {
       result.prevStatus === MilestoneStatus.NEEDS_REVIEW &&
       result.status === MilestoneStatus.IN_PROGRESS
     ) {
-      _createConversion('rejected');
+      _createConversion(app, result, context.params.eventTxHash, 'rejected', user);
 
       // find the milestone reviewer and send a notification that his/her milestone has been rejected by reviewer
       Notifications.milestoneReviewRejected(app, {
@@ -390,7 +398,7 @@ const sendNotification = () => async context => {
     }
 
     if (result.status === MilestoneStatus.CANCELED && result.mined) {
-      _createConversion(result.status);
+      _createConversion(app, result, context.params.eventTxHash, result.status, user);
 
       // find the milestone owner and send a notification that his/her milestone is canceled
       Notifications.milestoneCanceled(app, {
@@ -408,7 +416,7 @@ const sendNotification = () => async context => {
       result.prevStatus === MilestoneStatus.PROPOSED &&
       result.status === MilestoneStatus.REJECTED
     ) {
-      _createConversion('proposedRejected');
+      _createConversion(app, result, 'proposedRejected', user);
 
       // find the milestone owner and send a notification that his/her proposed milestone is rejected
       Notifications.proposedMilestoneRejected(app, {
@@ -424,7 +432,7 @@ const sendNotification = () => async context => {
       result.prevStatus === MilestoneStatus.REJECTED &&
       result.status === MilestoneStatus.PROPOSED
     ) {
-      _createConversion('rePropose');
+      _createConversion(app, result, 'rePropose', user);
     }
   }
 };
@@ -450,7 +458,7 @@ const checkEthConversion = () => context => {
       fiatAmount,
       etherToCheck,
     );
-    // calculate the conversion of the item, make sure that fiat-eth is correct
+    // calculate the converion of the item, make sure that fiat-eth is correct
     const rate = conversionRate.rates[selectedFiatType];
     const ether = utils.toWei(new BigNumber(fiatAmount).div(rate).toFixed(18));
 
@@ -461,11 +469,12 @@ const checkEthConversion = () => context => {
 
   if (items && items.length > 0) {
     // check total amount of milestone, make sure it is correct
-    const totalItemWeiAmount = items
-      .reduce((sum, item) => sum.plus(new BigNumber(item.wei)), new BigNumber('0'))
-      .toString();
+    const totalItemEtherAmount = items.reduce(
+      (sum, item) => sum.plus(new BigNumber(item.etherAmount)),
+      new BigNumber('0'),
+    );
 
-    if (totalItemWeiAmount !== data.maxAmount) {
+    if (utils.toWei(totalItemEtherAmount.toFixed(18)) !== data.maxAmount) {
       throw new errors.Forbidden('Total amount in ether is incorrect');
     }
 
@@ -559,13 +568,14 @@ const storePrevState = () => context => {
 };
 
 /**
- * Capture the address of the user who patched (= performed action on) the milestone
+ * Stores the address of the user who patched (= performed action on) the milestone
  * */
+
 const performedBy = () => context => {
   // do not process internal calls as they have no user
   if (!context.params.provider) return context;
 
-  context.params.performedByAddress = context.params.user.address;
+  context.data.performedByAddress = context.params.user.address;
   return context;
 };
 
