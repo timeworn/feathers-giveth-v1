@@ -3,12 +3,12 @@ const rp = require('request-promise');
 const app = require('../src/app');
 
 describe('Feathers application tests', () => {
-  before(function start(done) {
+  before(function(done) {
     this.server = app.listen(3030);
     this.server.once('listening', () => done());
   });
 
-  after(function finish(done) {
+  after(function(done) {
     this.server.close(done);
   });
 

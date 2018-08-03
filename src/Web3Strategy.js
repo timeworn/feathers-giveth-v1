@@ -8,14 +8,6 @@ const debug = Debug('passportjs:Web3Strategy');
 
 // TODO clean this up and split to separate package
 
-function recoverAddress(message, signature) {
-  const accounts = new Accounts();
-  // const address = accounts.recover(accounts.hashMessage(message), signature);
-  const address = accounts.recover(message, signature);
-
-  return toChecksumAddress(address);
-}
-
 /**
  * The Web3 authentication strategy authenticates requests based on a signed message from an ethereum account.
  *
@@ -59,7 +51,7 @@ class Web3Strategy extends Strategy {
     // no signature, then they need a challenge msg to sign
     if (!signature) return this.issueChallenge(address);
 
-    return this.challenger.getMessage(address, (err, message) => {
+    this.challenger.getMessage(address, (err, message) => {
       if (err) {
         if (err.name === 'NotFound') return this.issueChallenge(address);
 
@@ -69,18 +61,27 @@ class Web3Strategy extends Strategy {
       // issue a challenge if there is not a valid message
       if (!message) return this.issueChallenge(address);
 
-      const recoveredAddress = recoverAddress(message, signature);
+      const recoveredAddress = this.recoverAddress(message, signature);
       const cAddress = toChecksumAddress(address);
 
       if (recoveredAddress !== cAddress)
         return this.fail('Recovered address does not match provided address');
 
-      return this.challenger.verify(cAddress, (e, user, info) => {
+      this.challenger.verify(cAddress, (err, user, info) => {
         if (!user) return this.fail('Recovered address rejected');
 
-        return this.success(user, info);
+        this.success(user, info);
       });
     });
+  }
+
+  /* eslint-disable class-methods-use-this */
+  recoverAddress(message, signature) {
+    const accounts = new Accounts();
+    // const address = accounts.recover(accounts.hashMessage(message), signature);
+    const address = accounts.recover(message, signature);
+
+    return toChecksumAddress(address);
   }
 
   issueChallenge(address) {
@@ -89,7 +90,7 @@ class Web3Strategy extends Strategy {
 
       if (!message) return this.fail('Failed to generate challenge message', 500);
 
-      return this.fail(`Challenge = ${message}`);
+      this.fail(`Challenge = ${message}`);
     });
   }
 }

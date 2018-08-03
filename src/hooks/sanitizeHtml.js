@@ -9,7 +9,6 @@ module.exports = (...fieldNames) => context => {
   const sanitize = item => {
     fieldNames.forEach(fieldName => {
       if (item[fieldName]) {
-        // eslint-disable-next-line no-param-reassign
         item[fieldName] = sanitizeHtml(item[fieldName], {
           allowedTags: [
             'p',
@@ -45,11 +44,7 @@ module.exports = (...fieldNames) => context => {
   // items may be undefined if we are removing by id;
   if (items === undefined) return context;
 
-  if (Array.isArray(items)) {
-    items.forEach(item => sanitize(item));
-  } else {
-    sanitize(items);
-  }
+  Array.isArray(items) ? items.forEach(item => sanitize(item)) : sanitize(items);
 
   commons.replaceItems(context, items);
 

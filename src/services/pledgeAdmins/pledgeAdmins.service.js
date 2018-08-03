@@ -3,7 +3,7 @@ const createService = require('feathers-mongoose');
 const { createModel } = require('../../models/pledgeAdmins.model');
 const hooks = require('./pledgeAdmins.hooks');
 
-module.exports = function pledgeAdmins() {
+module.exports = function() {
   const app = this;
   const Model = createModel(app);
   const paginate = app.get('paginate');

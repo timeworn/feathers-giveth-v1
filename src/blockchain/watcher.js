@@ -112,9 +112,9 @@ const watcher = (app, eventHandler) => {
 
     const data = await eventService.find({ paginate: false, query: { logIndex, transactionHash } });
 
-    if (data.some(e => e.confirmed)) {
+    if (data.some(e => e.status !== EventStatus.WAITING )) {
       logger.error(
-        'RE-ORG ERROR: attempting to process newEvent, however the matching event has already been confirmed. Consider increasing the requiredConfirmations.',
+        'RE-ORG ERROR: attempting to process newEvent, however the matching event has already started processing. Consider increasing the requiredConfirmations.',
         event,
         data,
       );
@@ -127,6 +127,7 @@ const watcher = (app, eventHandler) => {
     }
 
     await eventService.create(Object.assign({}, event, { confirmations: 0 }));
+    logger.info('processNewEvent -> purging queue');
     queue.purge();
   }
 
@@ -156,10 +157,14 @@ const watcher = (app, eventHandler) => {
 
     // during a reorg, the same event can occur in quick succession, so we add everything to a
     // queue so they are processed synchronously
+    logger.info('adding processNewEvent to queue');
     queue.add(() => processNewEvent(event));
 
     // start processing the queued events if we haven't already
-    if (!queue.isProcessing()) queue.purge();
+    if (!queue.isProcessing()) {
+      logger.info('isProcessing = false -> purging queue');
+      queue.purge();
+    }
   }
 
   /**
@@ -170,32 +175,40 @@ const watcher = (app, eventHandler) => {
   async function processRemoveEvent(event) {
     const { id, transactionHash } = event;
 
-    await eventService.remove(null, { query: { id, transactionHash, confirmed: false } });
+    logger.info('attempting to remove event:', event);
+    await eventService.remove(null, {
+      query: { id, transactionHash, status: EventStatus.WAITING },
+    });
 
     const data = await eventService.find({
       paginate: false,
-      query: { id, transactionHash, confirmed: true },
+      query: { id, transactionHash, status: { $ne: EventStatus.WAITING } },
     });
     if (data.length > 0) {
       logger.error(
-        'RE-ORG ERROR: removeEvent was called, however the matching event has already been confirmed so we did not remove it. Consider increasing the requiredConfirmations.',
+        'RE-ORG ERROR: removeEvent was called, however the matching event is already processing/processed so we did not remove it. Consider increasing the requiredConfirmations.',
         event,
         data,
       );
     }
+    logger.info('processRemoveEvent -> purging queue');
     queue.purge();
   }
 
   /**
-   * remove this event if it has yet to be confirmed
+   * remove this event if it has yet to start processing
    */
   function removeEvent(event) {
     // during a reorg, the same event can occur in quick succession, so we add everything to a
     // queue so they are processed synchronously
+    logger.info('adding processRemoveEvent to queue');
     queue.add(() => processRemoveEvent(event));
 
     // start processing the queued events if we haven't already
-    if (!queue.isProcessing()) queue.purge();
+    if (!queue.isProcessing()) {
+      logger.info('isProcessing = false -> purging queue');
+      queue.purge();
+    }
   }
 
   /**

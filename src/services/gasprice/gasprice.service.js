@@ -2,7 +2,7 @@
 const createService = require('feathers-memory');
 const hooks = require('./gasprice.hooks');
 
-module.exports = function gasPrice() {
+module.exports = function() {
   const app = this;
   const paginate = app.get('paginate');
 

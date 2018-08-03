@@ -3,7 +3,7 @@ const createService = require('feathers-memory');
 
 const hooks = require('./whitelist.hooks');
 
-module.exports = function whitelist() {
+module.exports = function() {
   const app = this;
 
   const options = {

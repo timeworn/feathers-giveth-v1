@@ -46,6 +46,7 @@ function Donation(app) {
       homeTxHash: { type: String },
       commitTime: { type: Date },
       mined: { type: Boolean, default: false, required: true },
+      previousState: { type: Object },
       parentDonations: { type: [String], default: [], required: true },
       isReturn: { type: Boolean, default: false },
     },

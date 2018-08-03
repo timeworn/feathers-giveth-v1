@@ -1,6 +1,3 @@
-/* eslint-disable no-param-reassign */
-/* eslint-disable class-methods-use-this */
-
 // Initializes the `challenges` service on path `/authentication/challenges`
 const { Service } = require('feathers-mongoose');
 const errors = require('@feathersjs/errors');
@@ -14,16 +11,6 @@ const hooks = require('./challenges.hooks');
 
 const validFor = 1000 * 60 * 5; // valid for 5 minutes
 const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-const randomMessage = length => {
-  let result = '';
-  for (let i = length; i > 0; i -= 1) result += chars[Math.floor(Math.random() * chars.length)];
-  return result;
-};
-
-const notImplemented = method => {
-  throw new errors.NotImplemented(`${method} is not implemented on this service`);
-};
 
 class ChallengeService extends Service {
   get(address, params) {
@@ -45,26 +32,36 @@ class ChallengeService extends Service {
 
     data.address = toChecksumAddress(data.address);
     data.expirationDate = new Date(Date.now() + validFor);
-    data.message = randomMessage(20);
+    data.message = this._randomMessage(20);
 
     // we call update here b/c we want to use upsert.
     return super.update(data.address, data, params).then(entity => entity.message);
   }
 
   find() {
-    notImplemented('find');
+    this._notImplemented('find');
   }
 
   update() {
-    notImplemented('update');
+    this._notImplemented('update');
   }
 
   patch() {
-    notImplemented('patch');
+    this._notImplemented('patch');
+  }
+
+  _randomMessage(length) {
+    let result = '';
+    for (let i = length; i > 0; --i) result += chars[Math.floor(Math.random() * chars.length)];
+    return result;
+  }
+
+  _notImplemented(method) {
+    throw new errors.NotImplemented(`${method} is not implemented on this service`);
   }
 }
 
-module.exports = function factory() {
+module.exports = function() {
   const app = this;
   const Model = createModel(app);
   const paginate = app.get('paginate');

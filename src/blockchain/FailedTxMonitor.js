@@ -3,12 +3,11 @@ const LiquidPledgingArtifact = require('giveth-liquidpledging/build/LiquidPledgi
 const logger = require('winston');
 const LPVaultArtifact = require('giveth-liquidpledging/build/LPVault.json');
 const LPPCappedMilestoneArtifact = require('lpp-capped-milestone/build/LPPCappedMilestone.json');
-const { keccak256 } = require('web3-utils');
 
 const { DacStatus } = require('../models/dacs.model');
 const { DonationStatus } = require('../models/donations.model');
 const { CampaignStatus } = require('../models/campaigns.model');
-const { MilestoneStatus } = require('../models/milestones.model');
+const { MilestonStatus } = require('../models/milestones.model');
 
 const FIFTEEN_MINUTES = 1000 * 60 * 15;
 const TWO_HOURS = 1000 * 60 * 60 * 2;
@@ -28,33 +27,6 @@ function eventDecodersFromArtifact(artifact) {
 }
 
 /**
- * Generate a list of topics, for any event in the artifacts.
- *
- * @param {array} artifacts array of solcpiler generated artifact for a solidity contract
- * @param {array} names list of events names to generate topics for
- * @returns {array} array of topics used to subscribe to the events for the contract
- */
-function topicsFromArtifacts(artifacts, names) {
-  return artifacts
-    .reduce(
-      (accumulator, artifact) =>
-        accumulator.append(
-          artifact.compilerOutput.abi.filter(
-            method => method.type === 'event' && names.includes(method.name),
-          ),
-        ),
-      [],
-    )
-    .reduce((accumulator, event) => {
-      accumulator.push({
-        name: event.name,
-        hash: keccak256(`${event.name}(${event.inputs.map(i => i.type).join(',')})`),
-      });
-      return accumulator;
-    }, []);
-}
-
-/**
  * get the log decoders for the events we are interested in
  */
 function eventDecoders() {
@@ -70,9 +42,7 @@ function getPending(app, service, query) {
 }
 
 function getPendingDonations(app) {
-  const query = {
-    $or: [{ status: DonationStatus.PENDING }, { pendingAmountRemaining: { $exists: true } }],
-  };
+  const query = { status: DonationStatus.PENDING };
   return getPending(app, 'donations', query);
 }
 
@@ -90,27 +60,26 @@ function getPendingCampaigns(app) {
 
 function getPendingMilestones(app) {
   const query = {
-    $or: [{ status: MilestoneStatus.PENDING }, { mined: false }],
+    $or: [{ status: MilestonStatus.PENDING }, { mined: false }],
   };
   return getPending(app, 'milestones', query);
 }
+
+// TODO dynamically generate the topics from the artifacts
 
 /**
  * factory function for generating a failedTxMonitor.
  */
 const failedTxMonitor = (app, eventHandler) => {
   const web3 = app.getWeb3();
-  const homeWeb3 = app.getHomeWeb3();
   const decoders = eventDecoders();
   const { requiredConfirmations } = app.get('blockchain');
 
-  async function handlePendingDonation(
-    currentBlock,
-    donation,
-    receipt,
-    topics,
-    failedDonationMutation,
-  ) {
+  async function revertDonationIfFailed(currentBlock, donation) {
+    if (!donation.previousState || !donation.txHash) return;
+
+    const receipt = await web3.eth.getTransactionReceipt(donation.txHash);
+
     // reset the donation status if the tx has been pending for more then 2 hrs, otherwise ignore
     if (!receipt && donation.updatedAt <= Date.now() - TWO_HOURS) return;
     // ignore if there isn't enough confirmations
@@ -119,17 +88,31 @@ const failedTxMonitor = (app, eventHandler) => {
     if (!receipt || !receipt.status) {
       app
         .service('donations')
-        .patch(donation._id, failedDonationMutation)
+        .patch(
+          donation._id,
+          Object.assign({}, donation.previousState, { $unset: { previousState: true } }),
+        )
         .catch(logger.error);
       return;
     }
+
+    const topics = [
+      {
+        name: 'Transfer',
+        hash: web3.utils.keccak256('Transfer(uint256,uint256,uint256)'),
+      },
+      {
+        name: 'AuthorizePayment',
+        hash: web3.utils.keccak256('AuthorizePayment(uint256,bytes32,address,address,uint256)'),
+      },
+    ];
 
     // get logs we're interested in.
     const logs = receipt.logs.filter(log => topics.some(t => t.hash === log.topics[0]));
 
     if (logs.length === 0) {
       logger.error(
-        'donation has status === `Pending` but home transaction was successful -> donation:',
+        'donation has status === `Pending` but transaction was successful donation:',
         donation,
         'receipt:',
         receipt,
@@ -138,7 +121,7 @@ const failedTxMonitor = (app, eventHandler) => {
 
     logs.forEach(log => {
       logger.info(
-        'donation has status === `Pending` but home transaction was successful. re-emitting event donation:',
+        'donation has status === `Pending` but transaction was successful. re-emitting event donation:',
         donation,
         'receipt:',
         receipt,
@@ -146,40 +129,11 @@ const failedTxMonitor = (app, eventHandler) => {
 
       const topic = topics.find(t => t.hash === log.topics[0]);
 
-      eventHandler.handle(decoders.lp[topic.name](log));
-    });
-  }
-
-  async function updateInitialDonationIfFailed(currentBlock, donation) {
-    if (!donation.homeTxHash) return;
-
-    const receipt = await homeWeb3.eth.getTransactionReceipt(donation.homeTxHash);
-    const topics = topicsFromArtifacts([LiquidPledgingArtifact], ['Transfer']);
-
-    // TODO low priority as it isn't likely, but would be good to check foreignBridge for a Deposit
-    // event w/ homeTx === donation.homeTxHash and reprocess the event if necessary. This would require
-    // re-deploying the ForeignGivethBridge w/ homeTx as an indexed event param
-    if (!receipt) {
-      handlePendingDonation(currentBlock, donation, receipt, topics, {
-        status: DonationStatus.FAILED,
-      });
-    } else {
-      logger.error(
-        'donation has status === `Pending` but home transaction was successful. Was the donation correctly bridged?',
-      );
-    }
-  }
-
-  async function updateDonationIfFailed(currentBlock, donation) {
-    if (!donation.txHash) return;
-
-    const receipt = await web3.eth.getTransactionReceipt(donation.txHash);
-    if (receipt && currentBlock - receipt.blockNumber < requiredConfirmations) return;
-
-    const topics = topicsFromArtifacts([LiquidPledgingArtifact], ['Transfer']);
-
-    handlePendingDonation(currentBlock, donation, receipt, topics, {
-      $unset: { pendingAmountRemaining: true },
+      if (topic.name === 'AuthorizePayment') {
+        eventHandler.handle(decoders.vault[topic.name](log));
+      } else {
+        eventHandler.handle(decoders.lp[topic.name](log));
+      }
     });
   }
 
@@ -203,7 +157,12 @@ const failedTxMonitor = (app, eventHandler) => {
       return;
     }
 
-    const topics = topicsFromArtifacts([LiquidPledgingArtifact], ['DelegateAdded']);
+    const topics = [
+      {
+        name: 'DelegateAdded',
+        hash: web3.utils.keccak256('DelegateAdded(uint64,string)'),
+      },
+    ];
 
     // get logs we're interested in.
     const logs = receipt.logs.filter(log => topics.some(t => t.hash === log.topics[0]));
@@ -253,7 +212,10 @@ const failedTxMonitor = (app, eventHandler) => {
       return;
     }
 
-    const topics = topicsFromArtifacts([LiquidPledgingArtifact], ['ProjectAdded', 'CancelProject']);
+    const topics = [
+      { name: 'ProjectAdded', hash: web3.utils.keccak256('ProjectAdded(uint64,string)') },
+      { name: 'CancelProject', hash: web3.utils.keccak256('CancelProject(uint256)') },
+    ];
 
     // get logs we're interested in.
     const logs = receipt.logs.filter(log => topics.some(t => t.hash === log.topics[0]));
@@ -301,23 +263,52 @@ const failedTxMonitor = (app, eventHandler) => {
       return;
     }
 
-    const topics = topicsFromArtifacts(
-      [LiquidPledgingArtifact, LPPCappedMilestoneArtifact],
-      [
-        'ProjectAdded',
-        'CancelProject',
-        'MilestoneCompleteRequested',
-        'MilestoneCompleteRequestRejected',
-        'MilestoneCompleteRequestApproved',
-        'MilestoneChangeReviewerRequested',
-        'MilestoneReviewerChanged',
-        'MilestoneChangeCampaignReviewerRequested',
-        'MilestoneCampaignReviewerChanged',
-        'MilestoneChangeRecipientRequested',
-        'MilestoneRecipientChanged',
-        'PaymentCollected',
-      ],
-    );
+    const topics = [
+      { name: 'ProjectAdded', hash: web3.utils.keccak256('ProjectAdded(uint64,string)') },
+      { name: 'CancelProject', hash: web3.utils.keccak256('CancelProject(uint256)') },
+      {
+        name: 'MilestoneCompleteRequested',
+        hash: web3.utils.keccak256('MilestoneCompleteRequested(address,uint64)'),
+      },
+      {
+        name: 'MilestoneCompleteRequestRejected',
+        hash: web3.utils.keccak256('MilestoneCompleteRequested(address,uint64)'),
+      },
+      {
+        name: 'MilestoneCompleteRequestApproved',
+        hash: web3.utils.keccak256('MilestoneCompleteRequestApproved(address,uint64)'),
+      },
+      {
+        name: 'MilestoneChangeReviewerRequested',
+        hash: web3.utils.keccak256('MilestoneChangeReviewerRequested(address,uint64,address)'),
+      },
+      {
+        name: 'MilestoneReviewerChanged',
+        hash: web3.utils.keccak256('MilestoneReviewerChanged(address,uint64,address)'),
+      },
+      {
+        name: 'MilestoneChangeCampaignReviewerRequested',
+        hash: web3.utils.keccak256(
+          'MilestoneChangeCampaignReviewerRequested(address,uint64,address)',
+        ),
+      },
+      {
+        name: 'MilestoneCampaignReviewerChanged',
+        hash: web3.utils.keccak256('MilestoneCampaignReviewerChanged(address,uint64,address)'),
+      },
+      {
+        name: 'MilestoneChangeRecipientRequested',
+        hash: web3.utils.keccak256('MilestoneChangeRecipientRequested(address,uint64,address)'),
+      },
+      {
+        name: 'MilestoneRecipientChanged',
+        hash: web3.utils.keccak256('MilestoneRecipientChanged(address,uint64,address)'),
+      },
+      {
+        name: 'PaymentCollected',
+        hash: web3.utils.keccak256('PaymentCollected(address,uint64)'),
+      },
+    ];
 
     // get logs we're interested in.
     const logs = receipt.logs.filter(log => topics.some(t => t.hash === log.topics[0]));
@@ -356,12 +347,7 @@ const failedTxMonitor = (app, eventHandler) => {
         getPendingDonations(app),
       ]);
 
-      pendingDonations.forEach(
-        d =>
-          d.txHash
-            ? updateDonationIfFailed(blockNumber, d)
-            : updateInitialDonationIfFailed(blockNumber, d),
-      );
+      pendingDonations.forEach(d => revertDonationIfFailed(blockNumber, d));
     } catch (e) {
       logger.error(e);
     }

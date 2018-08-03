@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 const { checkContext, getItems } = require('feathers-hooks-common');
 
 module.exports = () => context => {
