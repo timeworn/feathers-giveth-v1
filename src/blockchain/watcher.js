@@ -127,24 +127,7 @@ const watcher = (app, eventHandler) => {
       );
     }
 
-    if (isReprocess && data.length > 0) {
-      const e = data[0];
-      if ([EventStatus.WAITING, EventStatus.PROCESSING].includes(e.status)) {
-        // ignore this reprocess b/c we still need to process an existing event
-        logger.info(
-          `Ignoring reprocess event for event._id: ${
-            e._id
-          }. Existing event has not finished processing`,
-        );
-      } else {
-        await eventService.patch(
-          e._id,
-          Object.assign({}, e, event, { confirmations: 0, status: EventStatus.WAITING }),
-        );
-      }
-    } else {
-      await eventService.create(Object.assign({}, event, { confirmations: 0 }));
-    }
+    await eventService.create(Object.assign({}, event, { confirmations: 0 }));
     queue.purge();
   }
 
@@ -449,6 +432,7 @@ const watcher = (app, eventHandler) => {
      * @param {object} event web3 event object
      */
     addEvent(event) {
+      console.log('adding event', event);
       newEvent(event, true);
     },
 

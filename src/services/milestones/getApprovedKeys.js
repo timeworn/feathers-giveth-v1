@@ -106,7 +106,7 @@ const getApprovedKeys = (milestone, data, user) => {
         }
         logger.info(`Marking milestone as complete. Milestone id: ${milestone._id}`);
 
-        return ['status', 'mined', 'message', 'proofItems'];
+        return ['txHash', 'status', 'mined', 'message', 'proofItems'];
       }
 
       // Cancel milestone by Campaign or Milestone Reviewer
@@ -182,22 +182,9 @@ const getApprovedKeys = (milestone, data, user) => {
       }
       break;
 
-    case MilestoneStatus.COMPLETED:
-      // Disbursing funds can be done by Milestone Manager or Recipient
-      if (data.status === MilestoneStatus.PAYING) {
-        if (![milestone.recipientAddress, milestone.ownerAddress].includes(user.address)) {
-          throw new errors.Forbidden(
-            'Only the Milestone Manager or Recipient can disburse a milestone payment',
-          );
-        }
-        logger.info(`Disbursing milestone payment. Milestone id: ${milestone._id}`);
-
-        return ['txHash', 'status', 'mined'];
-      }
-      break;
-
     // States that do not have any action
     case MilestoneStatus.PENDING:
+    case MilestoneStatus.COMPLETED:
     case MilestoneStatus.CANCELED:
     default:
       break;

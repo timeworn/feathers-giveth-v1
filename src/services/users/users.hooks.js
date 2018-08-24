@@ -6,7 +6,6 @@ const notifyOfChange = require('../../hooks/notifyOfChange');
 const sanitizeAddress = require('../../hooks/sanitizeAddress');
 const setAddress = require('../../hooks/setAddress');
 const fundWallet = require('../../hooks/fundWallet');
-const resolveFiles = require('../../hooks/resolveFiles');
 
 const normalizeId = () => context => {
   if (context.id) {
@@ -58,11 +57,11 @@ module.exports = {
 
   after: {
     all: [commons.discard('_id')],
-    find: [resolveFiles('avatar')],
-    get: [resolveFiles('avatar')],
-    create: [fundWallet(), resolveFiles('avatar')],
-    update: [resolveFiles('avatar'), notifyOfChange(...notifyParents)],
-    patch: [resolveFiles('avatar'), notifyOfChange(...notifyParents)],
+    find: [],
+    get: [],
+    create: [fundWallet()],
+    update: [notifyOfChange(...notifyParents)],
+    patch: [notifyOfChange(...notifyParents)],
     remove: [notifyOfChange(...notifyParents)],
   },
 
