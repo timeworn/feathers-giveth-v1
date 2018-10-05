@@ -4,6 +4,7 @@ const errors = require('@feathersjs/errors');
 const sanitizeAddress = require('../../hooks/sanitizeAddress');
 const setAddress = require('../../hooks/setAddress');
 const sanitizeHtml = require('../../hooks/sanitizeHtml');
+const resolveFiles = require('../../hooks/resolveFiles');
 const isProjectAllowed = require('../../hooks/isProjectAllowed');
 const addConfirmations = require('../../hooks/addConfirmations');
 const { MilestoneStatus } = require('../../models/milestones.model');
@@ -128,7 +129,7 @@ const canDelete = () => context => {
   const isDeletable = milestone => {
     if (!milestone) throw new errors.NotFound();
 
-    if (!['proposed', 'rejected'].includes(milestone.status)) {
+    if (![MilestoneStatus.PROPOSED, MilestoneStatus.REJECTED].includes(milestone.status)) {
       throw new errors.Forbidden('only proposed milestones can be removed');
     }
   };
@@ -201,11 +202,11 @@ module.exports = {
 
   after: {
     all: [commons.populate({ schema })],
-    find: [addConfirmations()],
-    get: [addConfirmations()],
-    create: [sendNotification()],
-    update: [],
-    patch: [sendNotification()],
+    find: [addConfirmations(), resolveFiles('image')],
+    get: [addConfirmations(), resolveFiles('image')],
+    create: [sendNotification(), resolveFiles('image')],
+    update: [resolveFiles('image')],
+    patch: [sendNotification(), resolveFiles('image')],
     remove: [],
   },
 
