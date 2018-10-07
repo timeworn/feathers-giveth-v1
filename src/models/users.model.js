@@ -14,7 +14,6 @@ module.exports = function User(app) {
       commitTime: { type: Number },
       avatar: { type: String },
       linkedIn: { type: String },
-      url: { type: String },
     },
     {
       timestamps: true,

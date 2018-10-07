@@ -5,7 +5,6 @@ const sanitizeAddress = require('../../hooks/sanitizeAddress');
 const setAddress = require('../../hooks/setAddress');
 const sanitizeHtml = require('../../hooks/sanitizeHtml');
 const addConfirmations = require('../../hooks/addConfirmations');
-const resolveFiles = require('../../hooks/resolveFiles');
 
 const restrict = [
   context => commons.deleteByDot(context.data, 'txHash'),
@@ -85,28 +84,6 @@ const isDacAllowed = () => context => {
   return context;
 };
 
-const checkToken = context => {
-  const tokenWhitelist = context.app.get('tokenWhitelist');
-
-  const items = commons.getItems(context);
-
-  const inWhitelist = project => {
-    if (Object.values(tokenWhitelist).includes(project.token)) return;
-
-    throw new errors.BadRequest(
-      `token ${project.token} is not in the whitelist`,
-    );
-  };
-
-  if (Array.isArray(items)) {
-    items.forEach(inWhitelist);
-  } else {
-    inWhitelist(items);
-  }
-  return context;
-};
-
-
 module.exports = {
   before: {
     all: [],
@@ -115,7 +92,6 @@ module.exports = {
     create: [
       setAddress('ownerAddress'),
       isDacAllowed(),
-      checkToken(),
       sanitizeAddress('ownerAddress', { required: true, validate: true }),
       sanitizeHtml('description'),
     ],
@@ -130,11 +106,11 @@ module.exports = {
 
   after: {
     all: [commons.populate({ schema })],
-    find: [addCampaignCounts(), addConfirmations(), resolveFiles('image')],
-    get: [addCampaignCounts(), addConfirmations(), resolveFiles('image')],
-    create: [resolveFiles('image')],
-    update: [resolveFiles('image')],
-    patch: [resolveFiles('image')],
+    find: [addCampaignCounts(), addConfirmations()],
+    get: [addCampaignCounts(), addConfirmations()],
+    create: [],
+    update: [],
+    patch: [],
     remove: [],
   },
 
