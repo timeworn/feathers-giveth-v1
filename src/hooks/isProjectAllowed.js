@@ -65,30 +65,7 @@ const checkOwner = context => {
   return context;
 };
 
-const checkToken = context => {
-  const tokenWhitelist = context.app.get('tokenWhitelist');
-
-  const items = commons.getItems(context);
-
-  const inWhitelist = project => {
-    if (tokenWhitelist.find(t => t.address === project.token)) return;
-
-    throw new errors.BadRequest(
-      `token ${project.token} is not in the whitelist`,
-    );
-  };
-
-  if (Array.isArray(items)) {
-    items.forEach(inWhitelist);
-  } else {
-    inWhitelist(items);
-  }
-  return context;
-};
-
-
 module.exports = () => context => {
   checkOwner(context);
   checkReviewer(context);
-  checkToken(context);
 };

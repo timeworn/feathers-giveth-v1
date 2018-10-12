@@ -1,5 +1,4 @@
 const Item = require('./item.model');
-const Token = require('./token.model');
 
 // milestones-model.js - A mongoose model
 //
@@ -47,7 +46,7 @@ function Milestone(app) {
       conversionRate: { type: Number, required: true },
       txHash: { type: String },
       pluginAddress: { type: String },
-      totalDonated: { type: Schema.Types.BN },
+      currentBalance: { type: Schema.Types.BN, min: 0 },
       fullyFunded: { tupe: Boolean },
       donationCount: { type: Number },
       peopleCount: { type: Number },
@@ -61,7 +60,6 @@ function Milestone(app) {
       message: { type: String },
       proofItems: [Item],
       messageContext: { type: String },
-      token: { type: Token }      
     },
     {
       timestamps: true,
