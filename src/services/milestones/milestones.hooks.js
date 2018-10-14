@@ -4,8 +4,7 @@ const errors = require('@feathersjs/errors');
 const sanitizeAddress = require('../../hooks/sanitizeAddress');
 const setAddress = require('../../hooks/setAddress');
 const sanitizeHtml = require('../../hooks/sanitizeHtml');
-const resolveFiles = require('../../hooks/resolveFiles');
-const { isProjectAllowed } = require('../../hooks/isProjectAllowed');
+const isProjectAllowed = require('../../hooks/isProjectAllowed');
 const addConfirmations = require('../../hooks/addConfirmations');
 const { MilestoneStatus } = require('../../models/milestones.model');
 const getApprovedKeys = require('./getApprovedKeys');
@@ -88,7 +87,6 @@ const restrict = () => context => {
       'conversionRate',
       'selectedFiatType',
       'date',
-      'token'
     ];
     keysToRemove.forEach(key => delete data[key]);
 
@@ -203,11 +201,11 @@ module.exports = {
 
   after: {
     all: [commons.populate({ schema })],
-    find: [addConfirmations(), resolveFiles('image')],
-    get: [addConfirmations(), resolveFiles('image')],
-    create: [sendNotification(), resolveFiles('image')],
-    update: [resolveFiles('image')],
-    patch: [sendNotification(), resolveFiles('image')],
+    find: [addConfirmations()],
+    get: [addConfirmations()],
+    create: [sendNotification()],
+    update: [],
+    patch: [sendNotification()],
     remove: [],
   },
 

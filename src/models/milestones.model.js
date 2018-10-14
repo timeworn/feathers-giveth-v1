@@ -1,5 +1,4 @@
 const Item = require('./item.model');
-const Token = require('./token.model');
 
 // milestones-model.js - A mongoose model
 //
@@ -53,7 +52,6 @@ function Milestone(app) {
       peopleCount: { type: Number },
       mined: { type: Boolean },
       prevStatus: { type: String },
-      url: { type: String },
 
       // these 2 fields should not be stored in mongo
       // but we need them for temporary storage
@@ -61,7 +59,6 @@ function Milestone(app) {
       message: { type: String },
       proofItems: [Item],
       messageContext: { type: String },
-      token: { type: Token }      
     },
     {
       timestamps: true,
