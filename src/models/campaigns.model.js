@@ -35,9 +35,6 @@ function createModel(app) {
         enum: Object.values(CampaignStatus),
         default: CampaignStatus.PENDING,
       },
-      url: { type: String },
-      commitTime: { type: Number },
-      communityUrl: { type: String },
     },
     {
       timestamps: true,

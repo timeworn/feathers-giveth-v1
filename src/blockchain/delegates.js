@@ -1,28 +1,12 @@
 /* eslint-disable consistent-return */
 
-const isIPFS = require('is-ipfs');
 const logger = require('winston');
 const { DacStatus } = require('../models/dacs.model');
 const reprocess = require('../utils/reprocess');
-const to = require('../utils/to');
 
 const delegates = (app, liquidPledging) => {
   const web3 = app.getWeb3();
   const dacs = app.service('/dacs');
-
-  async function fetchProfile(url) {
-    const [err, profile] = await to(app.ipfsFetcher(url));
-
-    if (err) {
-      logger.warn(`error fetching delegate profile from ${url}`, err);
-    } else if (profile && typeof profile === 'object') {
-      app.ipfsPinner(url);
-      if (profile.image && isIPFS.ipfsPath(profile.image)) {
-        app.ipfsPinner(profile.image);
-      }
-    }
-    return profile;
-  }
 
   async function getOrCreateDac(delegate, txHash, retry = false) {
     const data = await dacs.find({ paginate: false, query: { txHash } });
@@ -39,8 +23,6 @@ const delegates = (app, liquidPledging) => {
           ownerAddress: tx.from,
           pluginAddress: delegate.plugin,
           title: delegate.name,
-          commitTime: delegate.commitTime,
-          url: delegate.url,
           txHash,
           totalDonated: '0',
           currentBalance: '0',
@@ -70,16 +52,11 @@ const delegates = (app, liquidPledging) => {
       // most likely b/c the whitelist check failed
       if (!dac) return;
 
-      const profile = fetchProfile(delegate.url);
-      const mutation = Object.assign({ title: delegate.name }, profile, {
+      return dacs.patch(dac._id, {
         delegateId,
-        commitTime: delegate.commitTime,
         pluginAddress: delegate.plugin,
         status: DacStatus.ACTIVE,
-        url: delegate.url,
       });
-
-      return dacs.patch(dac._id, mutation);
     } catch (err) {
       logger.error(err);
     }
@@ -131,18 +108,9 @@ const delegates = (app, liquidPledging) => {
           getDacById(delegateId),
           liquidPledging.getPledgeAdmin(delegateId),
         ]);
-
-        const mutation = { title: delegate.name };
-        if (delegate.url && delegate.url !== dac.url) {
-          const profile = fetchProfile(delegate.url);
-          Object.assign(mutation, profile);
-        }
-        Object.assign(mutation, {
-          commitTime: delegate.commitTime,
-          url: delegate.url,
+        return dacs.patch(dac._id, {
+          title: delegate.name,
         });
-
-        return dacs.patch(dac._id, mutation);
       } catch (err) {
         logger.error('updateDelegate error ->', err);
       }

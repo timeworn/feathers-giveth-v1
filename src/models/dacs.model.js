@@ -37,9 +37,7 @@ function createModel(app) {
       ownerAddress: { type: String, required: true, index: true },
       pluginAddress: { type: String },
       tokenAddress: { type: String },
-      commitTime: { type: Number },
       mined: { type: Boolean },
-      url: { type: String },
     },
     {
       timestamps: true,
