@@ -6,9 +6,8 @@ const logger = require('winston');
 
 const processingQueue = require('../utils/processingQueue');
 const to = require('../utils/to');
-const { removeHexPrefix, getBlockTimestamp } = require('./lib/web3Helpers');
+const { removeHexPrefix } = require('./lib/web3Helpers');
 const { EventStatus } = require('../models/events.model');
-const { DonationStatus } = require('../models/donations.model');
 
 /**
  * get the last block that we have gotten logs from
@@ -147,6 +146,7 @@ const watcher = (app, eventHandler) => {
     } else {
       await eventService.create(Object.assign({}, event, { confirmations: 0 }));
     }
+    logger.info('processNewEvent finished', event.id);
     queue.purge();
   }
 
@@ -332,43 +332,6 @@ const watcher = (app, eventHandler) => {
   }
 
   /**
-   * Ensures that no donations occur after the last event.
-   *
-   * If we reprocess events w/o clearing the donations, this will cause
-   * issues with how we calculate which donation to transfer, etc.
-   */
-  async function checkDonations() {
-    const lastEvent = await eventService.find({
-      paginate: false,
-      query: { $limit: 1, $sort: { blockNumber: -1 } },
-    });
-
-    const lastDonation = await app.service('donations').find({
-      paginate: false,
-      query: {
-        $limit: 1,
-        mined: true,
-        status: { $nin: [DonationStatus.PENDING, DonationStatus.FAILED] },
-        $sort: { createdAt: -1 },
-      },
-    });
-
-    if (lastDonation.length > 0) {
-      const lastEventTs =
-        lastEvent.length > 0 ? await getBlockTimestamp(web3, lastEvent[0].blockNumber) : 0;
-      if (lastDonation[0].createdAt > lastEventTs) {
-        logger.error(
-          `It appears that you are attempting to reprocess events, or the events table has 
-          been altered and there are donations. In order to correctly sync/re-sync, the 
-          'donations' and 'events' tables must both be cleared, otherwise the donations
-          will not be an accurate representation of the blockchain txs`,
-        );
-        process.exit(1);
-      }
-    }
-  }
-
-  /**
    * Fetch all past events we are interested in
    */
   async function fetchPastEvents() {
@@ -471,7 +434,6 @@ const watcher = (app, eventHandler) => {
         const kernelAddress = await liquidPledging.kernel();
         kernel = new Kernel(web3, kernelAddress);
 
-        await checkDonations();
         fetchPastEvents();
         // start processing any events that have not been processed
         processEvents(await getUnProcessedEvents(eventService));
