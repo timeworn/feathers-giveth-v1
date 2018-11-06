@@ -147,6 +147,7 @@ const watcher = (app, eventHandler) => {
     } else {
       await eventService.create(Object.assign({}, event, { confirmations: 0 }));
     }
+    logger.info('processNewEvent finished', event.id);
     queue.purge();
   }
 

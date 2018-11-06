@@ -5,6 +5,7 @@ const sanitizeAddress = require('../../hooks/sanitizeAddress');
 const setAddress = require('../../hooks/setAddress');
 const sanitizeHtml = require('../../hooks/sanitizeHtml');
 const addConfirmations = require('../../hooks/addConfirmations');
+const resolveFiles = require('../../hooks/resolveFiles');
 
 const restrict = [
   context => commons.deleteByDot(context.data, 'txHash'),
@@ -84,6 +85,7 @@ const isDacAllowed = () => context => {
   return context;
 };
 
+
 module.exports = {
   before: {
     all: [],
@@ -106,11 +108,11 @@ module.exports = {
 
   after: {
     all: [commons.populate({ schema })],
-    find: [addCampaignCounts(), addConfirmations()],
-    get: [addCampaignCounts(), addConfirmations()],
-    create: [],
-    update: [],
-    patch: [],
+    find: [addCampaignCounts(), addConfirmations(), resolveFiles('image')],
+    get: [addCampaignCounts(), addConfirmations(), resolveFiles('image')],
+    create: [resolveFiles('image')],
+    update: [resolveFiles('image')],
+    patch: [resolveFiles('image')],
     remove: [],
   },
 

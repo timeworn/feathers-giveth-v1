@@ -65,7 +65,34 @@ const checkOwner = context => {
   return context;
 };
 
-module.exports = () => context => {
-  checkOwner(context);
-  checkReviewer(context);
+const checkToken = context => {
+  const tokenWhitelist = context.app.get('tokenWhitelist');
+
+  const items = commons.getItems(context);
+
+  const inWhitelist = project => {
+    if (tokenWhitelist.find(t => t.address === project.token.address)) return;
+
+    throw new errors.BadRequest(
+      `token ${project.token.symbol} is not in the whitelist`,
+    );
+  };
+
+  if (Array.isArray(items)) {
+    items.forEach(inWhitelist);
+  } else {
+    inWhitelist(items);
+  }
+  return context;
+};
+
+
+module.exports = {
+  isProjectAllowed: () => context => {
+    checkOwner(context);
+    checkReviewer(context);
+    checkToken(context);
+  },
+  checkOwner: () => context => checkOwner(context),
+  checkReviewer: () => context => checkReviewer(context)
 };
