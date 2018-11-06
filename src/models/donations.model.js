@@ -1,5 +1,3 @@
-const Token = require('./token.model');
-
 // donations-model.js - A mongoose model
 //
 // See http://mongoosejs.com/docs/models.html
@@ -51,7 +49,6 @@ function Donation(app) {
       mined: { type: Boolean, default: false, required: true },
       parentDonations: { type: [String], default: [], required: true },
       isReturn: { type: Boolean, default: false },
-      token: { type: Token }            
     },
     {
       timestamps: true,

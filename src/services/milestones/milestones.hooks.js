@@ -5,7 +5,7 @@ const sanitizeAddress = require('../../hooks/sanitizeAddress');
 const setAddress = require('../../hooks/setAddress');
 const sanitizeHtml = require('../../hooks/sanitizeHtml');
 const resolveFiles = require('../../hooks/resolveFiles');
-const { isProjectAllowed } = require('../../hooks/isProjectAllowed');
+const isProjectAllowed = require('../../hooks/isProjectAllowed');
 const addConfirmations = require('../../hooks/addConfirmations');
 const { MilestoneStatus } = require('../../models/milestones.model');
 const getApprovedKeys = require('./getApprovedKeys');
@@ -88,7 +88,6 @@ const restrict = () => context => {
       'conversionRate',
       'selectedFiatType',
       'date',
-      'token'
     ];
     keysToRemove.forEach(key => delete data[key]);
 

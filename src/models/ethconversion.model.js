@@ -7,16 +7,13 @@ module.exports = function ETHConversion(app) {
   const { Schema } = mongooseClient;
   const ethconversion = new Schema(
     {
-      timestamp: { type: Date, required: true },
+      timestamp: { type: Date, required: true, index: true, unique: true },
       rates: { type: Object },
-      symbol: { type: String, required: true }
     },
     {
       timestamps: true,
     },
   );
-
-  ethconversion.index({ timestamp: 1, symbol: 1}, { unique: true });
 
   return mongooseClient.model('ethconversion', ethconversion);
 };
