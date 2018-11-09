@@ -141,7 +141,6 @@ const projects = (app, liquidPledging) => {
           txHash: tx.transactionHash,
           pluginAddress: project.plugin,
           url: project.url,
-          ownerAddress: milestone.ownerAddress,
           totalDonated: '0',
           currentBalance: '0',
           donationCount: 0,

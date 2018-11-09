@@ -1,3 +1,6 @@
+const Token = require('./token.model');
+const DonationCounter = require('./donationCounter.model')
+
 const DacStatus = {
   ACTIVE: 'Active',
   PENDING: 'Pending',
@@ -30,9 +33,7 @@ function createModel(app) {
       },
       image: { type: String },
       txHash: { type: String, required: true },
-      totalDonated: { type: Schema.Types.BN, min: 0 },
-      currentBalance: { type: Schema.Types.BN, min: 0 },
-      donationCount: { type: Number },
+      donationCounters: [ DonationCounter ],
       peopleCount: { type: Number },
       ownerAddress: { type: String, required: true, index: true },
       pluginAddress: { type: String },
@@ -40,6 +41,7 @@ function createModel(app) {
       commitTime: { type: Number },
       mined: { type: Boolean },
       url: { type: String },
+      token: { type: Token }      
     },
     {
       timestamps: true,

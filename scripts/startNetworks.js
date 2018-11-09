@@ -33,7 +33,6 @@ module.exports = async (blockTime = 0) => {
     ws: true,
     seed: 'TestRPC is awesome!',
     db_path: homeDbPath,
-    network_id: 66,
     logger: {
       log: val => console.log('Home Network: ', val),
     },
@@ -45,7 +44,6 @@ module.exports = async (blockTime = 0) => {
     ws: true,
     total_accounts: 11,
     db_path: foreignDbPath,
-    network_id: 67,
     seed: 'TestRPC is awesome!',
     logger: {
       log: val => console.log('Foreign Network: ', val),
