@@ -158,14 +158,14 @@ async function deploy() {
     await homeBridge.authorizeSpender(accounts[10], true, { from: accounts[10] });
 
     // deploy tokens
-    await foreignBridge.addToken("0x0000000000000000000000000000000000000000", 'Foreign ETH', 18, 'FETH', { from: accounts[10] });
-    const foreignEthAddress = await foreignBridge.tokenMapping('0x0000000000000000000000000000000000000000');
+    await foreignBridge.addToken(0, 'Foreign ETH', 18, 'FETH', { from: accounts[10] });
+    const foreignEthAddress = await foreignBridge.tokenMapping(0);
 
     // deploy ERC20 test token
     const miniMeToken = await MiniMeToken.new(homeWeb3,
       tokenFactory.$address,
-      "0x0000000000000000000000000000000000000000",
-      "0x0000000000000000000000000000000000000000",
+      0,
+      0,
       'MiniMe Test Token',
       18,
       'MMT',
