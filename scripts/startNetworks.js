@@ -2,7 +2,6 @@
 const path = require('path');
 const mkdirp = require('mkdirp');
 const Ganache = require('ganache-cli');
-const { utils } = require('web3');
 
 const attachWaitForStart = server => {
   // eslint-disable-next-line no-param-reassign
@@ -30,7 +29,6 @@ module.exports = async (blockTime = 0) => {
 
   // start networks
   const homeNetwork = Ganache.server({
-    gasLimit: utils.toHex(8000000),
     total_accounts: 11,
     ws: true,
     seed: 'TestRPC is awesome!',
@@ -43,7 +41,7 @@ module.exports = async (blockTime = 0) => {
   });
 
   const foreignNetwork = Ganache.server({
-    gasLimit: utils.toHex(7400000),
+    gasLimit: 6700000,
     ws: true,
     total_accounts: 11,
     db_path: foreignDbPath,

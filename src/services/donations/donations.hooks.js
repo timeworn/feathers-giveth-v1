@@ -243,7 +243,7 @@ const joinDonationRecipient = (item, context) => {
     .then(c => c.result);
 };
 
-const updateMilestoneIfNotPledged = () => async context => {
+const updateMilestoneIfNotPledged = () => context => {
   commons.checkContext(context, 'before', ['create']);
 
   const { data: donation } = context;
@@ -251,24 +251,9 @@ const updateMilestoneIfNotPledged = () => async context => {
     donation.ownerType === AdminTypes.MILESTONE &&
     [DonationStatus.PAYING, DonationStatus.PAID].includes(donation.status)
   ) {
-    const donations = await context.app.service('donations').find({
-      paginate: false,
-      query: {
-        status: { $in: [DonationStatus.COMMITTED, DonationStatus.PAYING] },
-        amountRemaining: { $ne: '0' },
-      },
-    });
-
-    // if there are still committed donations, don't mark the as paid or paying
-    if (donations.some(d => d.status === DonationStatus.COMMITTED)) return;
-
-    const atLeastOneDonationPaying = donations.some(d => d.status === DonationStatus.PAYING);
-
     context.app.service('milestones').patch(donation.ownerTypeId, {
       status:
-        donation.status === atLeastOneDonationPaying || DonationStatus.PAYING
-          ? MilestoneStatus.PAYING
-          : MilestoneStatus.PAID,
+        donation.status === DonationStatus.PAYING ? MilestoneStatus.PAYING : MilestoneStatus.PAID,
     });
   }
 };
