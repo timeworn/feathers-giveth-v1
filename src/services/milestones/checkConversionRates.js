@@ -2,7 +2,6 @@ const BigNumber = require('bignumber.js');
 const errors = require('@feathersjs/errors');
 const { utils } = require('web3');
 const logger = require('winston');
-const { MilestoneTypes } = require('../../models/milestones.model');
 
 BigNumber.config({ DECIMAL_PLACES: 18 });
 
@@ -18,19 +17,7 @@ const checkConversionRates = () => context => {
 
   // skip check if the milestone has been already created
   // FIXME: Even single expense should be stored in data.items. Unnecessary duplicity in code on both frontend and feathers.
-  if (
-    (!items || (Array.isArray(items) && items.length === 0)) &&
-    !data.fiatAmount &&
-    !data.maxAmount &&
-    !data.selectedFiatType
-  ) {
-    return context;
-  }
-
-  // BridgedMilestone & LPMilestone may not have a maxAmount set
-  if ([MilestoneTypes.BridgedMilestone, MilestoneTypes.LPMilestone].includes(data.type)) {
-    if ((!items || items.length === 0) && !data.maxAmount) return context;
-  }
+  if (!items && !data.fiatAmount && !data.maxAmount && !data.selectedFiatType) return context;
 
   const calculateCorrectEther = (conversionRate, fiatAmount, etherToCheck, selectedFiatType) => {
     logger.debug(
