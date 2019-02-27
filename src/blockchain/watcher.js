@@ -1,6 +1,5 @@
 const { LiquidPledging, LPVault, Kernel } = require('giveth-liquidpledging');
 const { LPPCappedMilestone } = require('lpp-capped-milestone');
-const { BridgedMilestone, LPMilestone } = require('lpp-milestones');
 const semaphore = require('semaphore');
 const { keccak256, padLeft, toHex } = require('web3-utils');
 const logger = require('winston');
@@ -312,21 +311,14 @@ const watcher = (app, eventHandler) => {
   const { liquidPledgingAddress } = app.get('blockchain');
   const liquidPledging = new LiquidPledging(web3, liquidPledgingAddress);
   const lppCappedMilestone = new LPPCappedMilestone(web3).$contract;
-  const lpMilestone = new LPMilestone(web3).$contract;
-  const bridgedMilestone = new BridgedMilestone(web3).$contract;
-  const milestoneEventDecoder = lppCappedMilestone._decodeEventABI.bind({
+  const lppCappedMilestoneEventDecoder = lppCappedMilestone._decodeEventABI.bind({
     name: 'ALLEVENTS',
-    jsonInterface: [
-      ...lppCappedMilestone._jsonInterface,
-      ...lpMilestone._jsonInterface,
-      ...bridgedMilestone._jsonInterface,
-    ],
+    jsonInterface: lppCappedMilestone._jsonInterface,
   });
 
-  function getMilestoneTopics() {
+  function getLppCappedMilestoneTopics() {
     return [
       [
-        // LPPCappedMilestone
         keccak256('MilestoneCompleteRequested(address,uint64)'),
         keccak256('MilestoneCompleteRequestRejected(address,uint64)'),
         keccak256('MilestoneCompleteRequestApproved(address,uint64)'),
@@ -335,47 +327,10 @@ const watcher = (app, eventHandler) => {
         keccak256('MilestoneChangeRecipientRequested(address,uint64,address)'),
         keccak256('MilestoneRecipientChanged(address,uint64,address)'),
         keccak256('PaymentCollected(address,uint64)'),
-
-        // LPMilestone
-        keccak256('RequestReview(address,uint64)'),
-        keccak256('RejectCompleted(address,uint64)'),
-        keccak256('ApproveCompleted(address,uint64)'),
-        keccak256('ReviewerChanged(address,uint64,address)'),
-
-        // BridgedMilestone - excluding duplicate topics
-        keccak256('RecipientChanged(address,uint64,address)'),
       ],
       padLeft(`0x${removeHexPrefix(liquidPledging.$address).toLowerCase()}`, 64),
     ];
   }
-
-  // const lpMilestoneEventDecoder = lpMilestone._decodeEventABI.bind({
-  //   name: 'ALLEVENTS',
-  //   jsonInterface: lpMilestone._jsonInterface,
-  // });
-
-  // function getLpMilestoneTopics() {
-  //   return [
-  //     [
-  //     ],
-  //     padLeft(`0x${removeHexPrefix(liquidPledging.$address).toLowerCase()}`, 64),
-  //   ];
-  // }
-
-  // const bridgedMilestoneEventDecoder = bridgedMilestone._decodeEventABI.bind({
-  //   name: 'ALLEVENTS',
-  //   jsonInterface: lpMilestone._jsonInterface,
-  // });
-
-  // function getBridgedMilestoneTopics() {
-  //   return [
-  //     [
-  //       // exlude shared events w/ LPMilestone
-  //       // keccak256('PaymentCollected(address,uint64)'),
-  //     ],
-  //     padLeft(`0x${removeHexPrefix(liquidPledging.$address).toLowerCase()}`, 64),
-  //   ];
-  // }
 
   /**
    * Ensures that no donations occur after the last event.
@@ -436,23 +391,9 @@ const watcher = (app, eventHandler) => {
     await web3.eth
       .getPastLogs({
         fromBlock,
-        topics: getMilestoneTopics(),
+        topics: getLppCappedMilestoneTopics(),
       })
-      .then(events => events.forEach(e => newEvent(milestoneEventDecoder(e))));
-
-    // await web3.eth
-    //   .getPastLogs({
-    //     fromBlock,
-    //     topics: getLpMilestoneTopics(),
-    //   })
-    //   .then(events => events.forEach(e => newEvent(lpMilestoneEventDecoder(e))));
-
-    // await web3.eth
-    //   .getPastLogs({
-    //     fromBlock,
-    //     topics: getBridgedMilestoneTopics(),
-    //   })
-    //   .then(events => events.forEach(e => newEvent(bridgedMilestoneEventDecoder(e))));
+      .then(events => events.forEach(e => newEvent(lppCappedMilestoneEventDecoder(e))));
 
     await lpVault.$contract.getPastEvents({ fromBlock }).then(events => events.forEach(newEvent));
 
@@ -475,7 +416,7 @@ const watcher = (app, eventHandler) => {
   }
 
   /**
-   * subscribe to SetApp events for milestones & lpp-campaign
+   * subscribe to SetApp events for lpp-capped-milestone & lpp-campaign
    */
   async function subscribeApps() {
     subscriptions.push(
@@ -483,12 +424,7 @@ const watcher = (app, eventHandler) => {
         .SetApp({
           filter: {
             namespace: keccak256('base'),
-            name: [
-              keccak256('lpp-capped-milestone'),
-              keccak256('lpp-lp-milestone'),
-              keccak256('lpp-bridged-milestone'),
-              keccak256('lpp-campaign'),
-            ],
+            name: [keccak256('lpp-capped-milestone'), keccak256('lpp-campaign')],
           },
         })
         .on('data', newEvent)
@@ -498,12 +434,12 @@ const watcher = (app, eventHandler) => {
   }
 
   /**
-   * subscribe to milestone events associated with the this lp contract
+   * subscribe to lpp-capped-milestone events associated with the this lp contract
    */
   function subscribeCappedMilestones() {
     subscriptions.push(
-      subscribeLogs(web3, getMilestoneTopics())
-        .on('data', e => newEvent(milestoneEventDecoder(e)))
+      subscribeLogs(web3, getLppCappedMilestoneTopics())
+        .on('data', e => newEvent(lppCappedMilestoneEventDecoder(e)))
         .on('changed', e => e.removed && removeEvent(e)),
     );
   }

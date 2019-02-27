@@ -3,8 +3,6 @@ const { toBN } = require('web3-utils');
 const logger = require('winston');
 const LPVaultArtifact = require('giveth-liquidpledging/build/LPVault.json');
 const LPPCappedMilestoneArtifact = require('lpp-capped-milestone/build/LPPCappedMilestone.json');
-const LPMilestoneArtifact = require('lpp-milestones/build/LPMilestone.json');
-const BridgedMilestoneArtifact = require('lpp-milestones/build/BridgedMilestone.json');
 
 const eventDecodersFromArtifact = require('./lib/eventDecodersFromArtifact');
 const topicsFromArtifacts = require('./lib/topicsFromArtifacts');
@@ -23,11 +21,7 @@ function eventDecoders() {
   return {
     lp: eventDecodersFromArtifact(LiquidPledgingArtifact),
     vault: eventDecodersFromArtifact(LPVaultArtifact),
-    milestone: {
-      ...eventDecodersFromArtifact(LPPCappedMilestoneArtifact),
-      ...eventDecodersFromArtifact(LPMilestoneArtifact),
-      ...eventDecodersFromArtifact(BridgedMilestoneArtifact),
-    },
+    milestone: eventDecodersFromArtifact(LPPCappedMilestoneArtifact),
   };
 }
 
@@ -363,12 +357,7 @@ const failedTxMonitor = (app, eventWatcher) => {
     }
 
     const topics = topicsFromArtifacts(
-      [
-        LiquidPledgingArtifact,
-        LPPCappedMilestoneArtifact,
-        LPMilestoneArtifact,
-        BridgedMilestoneArtifact,
-      ],
+      [LiquidPledgingArtifact, LPPCappedMilestoneArtifact],
       [
         'ProjectAdded',
         'CancelProject',
@@ -381,11 +370,6 @@ const failedTxMonitor = (app, eventWatcher) => {
         'MilestoneCampaignReviewerChanged',
         'MilestoneChangeRecipientRequested',
         'MilestoneRecipientChanged',
-        'RequestReview',
-        'RejectCompleted',
-        'ApproveCompleted',
-        'ReviewerChanged',
-        'RecipientChanged',
         'PaymentCollected',
       ],
     );

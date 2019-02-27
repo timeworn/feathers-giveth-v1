@@ -2,7 +2,6 @@ const logger = require('winston');
 const giversFactory = require('./givers');
 const delegatesFactory = require('./delegates');
 const projectsFactory = require('./projects');
-const { AdminTypes } = require('../models/pledgeAdmins.model');
 const to = require('../utils/to');
 
 /**
@@ -21,28 +20,15 @@ const adminFactory = (app, liquidPledging) => {
     const pledgeAdmins = app.service('pledgeAdmins');
 
     try {
-      return await pledgeAdmins.create({ id, type, typeId });
+      return await pledgeAdmins.update(
+        null,
+        { id, type, typeId },
+        {
+          query: { id },
+          mongoose: { upsert: true },
+        },
+      );
     } catch (err) {
-      if (err.name === 'Conflict') {
-        // TODO specify schema here so the 'admin' object isn't attached to the fetched pledgeAdmin
-        const [error, admin] = await to(
-          pledgeAdmins.find({ paginate: false, query: { id } }).then(data => data[0]),
-        );
-
-        const normalizedTypeId = typeof typeId === 'object' ? typeId.toString() : typeId;
-
-        if (error) {
-          logger.error(error);
-        } else if (admin.type !== type || admin.typeId.toString() !== normalizedTypeId) {
-          logger.error(
-            `existing pledgeAdmin id: ${id} -> type/typeId: ${admin.type}/${
-              admin.typeId
-            } does not match expected: ${type}/${typeId}`,
-          );
-        }
-
-        return admin;
-      }
       logger.error('create pledgeAdmin error =>', err);
     }
   }
@@ -109,8 +95,8 @@ const adminFactory = (app, liquidPledging) => {
       const project = await projects.addProject(event);
 
       if (project) {
-        // only milestones have a campaignId
-        const type = project.campaignId ? AdminTypes.MILESTONE : AdminTypes.CAMPAIGN;
+        // only milestones have a maxAmount
+        const type = project.maxAmount ? 'milestone' : 'campaign';
         await createPledgeAdmin(project.projectId, type, project._id);
       }
     },
@@ -126,8 +112,8 @@ const adminFactory = (app, liquidPledging) => {
       // a new project is created if the createdAt & updatedAt are significantly different
       const fifteenSeconds = 15 * 1000;
       if (project.updatedAt - project.createdAt > fifteenSeconds) {
-        // only milestones have a campaignId
-        const type = project.campaignId ? AdminTypes.MILESTONE : AdminTypes.CAMPAIGN;
+        // only milestones have a maxAmount
+        const type = project.maxAmount ? 'milestone' : 'campaign';
         await createPledgeAdmin(project.projectId, type, project._id);
       }
     },
