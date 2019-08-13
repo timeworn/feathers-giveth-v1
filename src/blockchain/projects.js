@@ -197,7 +197,6 @@ const projects = (app, liquidPledging) => {
             projectId,
             maxAmount: milestone.maxAmount === '0' ? undefined : milestone.maxAmount,
             reviewerAddress: milestone.reviewer,
-            dacId: milestone.dacId,
             recipientAddress: isAddress(milestone.recipient) ? milestone.recipient : undefined,
             recipientId: !isAddress(milestone.recipient) ? milestone.recipient : undefined,
             campaignReviewerAddress: milestone.campaignReviewer,
@@ -253,11 +252,11 @@ const projects = (app, liquidPledging) => {
 
   async function createCampaign(project, projectId, reviewerAddress, canceled, txHash) {
     const tx = await web3.eth.getTransaction(txHash);
+
     try {
       return campaigns.create({
         projectId,
         ownerAddress: tx.from,
-        coownerAddress: '0x0',
         pluginAddress: project.plugin,
         reviewerAddress,
         title: project.name,

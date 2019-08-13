@@ -108,11 +108,6 @@ module.exports = {
     find: [sanitizeAddress('ownerAddress')],
     get: [],
     create: [
-      setAddress('coownerAddress'),
-      sanitizeAddress('coownerAddress', {
-        required: true,
-        validate: true,
-      }),
       setAddress('ownerAddress'),
       sanitizeAddress('ownerAddress', {
         required: true,
