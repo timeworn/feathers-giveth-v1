@@ -232,13 +232,6 @@ const sendNotification = () => async context => {
     ) {
       _createConversion('rePropose');
     }
-
-    if (
-      result.prevStatus === MilestoneStatus.IN_PROGRESS &&
-      result.status === MilestoneStatus.ARCHIVED
-    ) {
-      _createConversion('archived');
-    }
   }
 };
 
