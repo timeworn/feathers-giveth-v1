@@ -33,7 +33,6 @@ const MESSAGE_CONTEXT = [
   'proposedRejected',
   'proposedAccepted',
   'rePropose',
-  'payment',
 ];
 
 /**
@@ -67,7 +66,7 @@ const restrictAndSetOwner = () => context => {
           context.data.performedByRole = 'Campaign Manager';
           break;
         case milestone.campaign.coownerAddress:
-          context.data.performedByRole = 'Campaign Co-Manager';
+        context.data.performedByRole = 'Campaign Co-Manager';
           break;
         case milestone.recipientAddress:
           context.data.performedByRole = 'Recipient';
@@ -123,12 +122,6 @@ const schema = {
       service: 'users',
       nameAs: 'owner',
       parentField: 'ownerAddress',
-      childField: 'address',
-    },
-    {
-      service: 'users',
-      nameAs: 'recipient',
-      parentField: 'recipientAddress',
       childField: 'address',
     },
   ],
