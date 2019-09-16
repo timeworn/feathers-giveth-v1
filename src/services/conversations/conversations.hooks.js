@@ -33,6 +33,8 @@ const MESSAGE_CONTEXT = [
   'proposedRejected',
   'proposedAccepted',
   'rePropose',
+  'archived',
+  'payment',
 ];
 
 /**
@@ -122,6 +124,12 @@ const schema = {
       service: 'users',
       nameAs: 'owner',
       parentField: 'ownerAddress',
+      childField: 'address',
+    },
+    {
+      service: 'users',
+      nameAs: 'recipient',
+      parentField: 'recipientAddress',
       childField: 'address',
     },
   ],
