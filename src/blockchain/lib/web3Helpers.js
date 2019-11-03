@@ -30,8 +30,13 @@ function batchAndExecuteRequests(web3, requests) {
     batch.execute();
     batchAndExecuteRequests(web3, requests);
   } catch (e) {
-    //  console.log(e); TODO: Add appropriate log
+    //  console.log(e);
   }
+  const batch = new web3.BatchRequest();
+  requests.splice(0, 100).forEach(r => batch.add(r));
+  batch.execute();
+
+  batchAndExecuteRequests(web3, requests);
 }
 
 /**
