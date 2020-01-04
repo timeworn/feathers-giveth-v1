@@ -15,11 +15,9 @@ const sendNotification = async (app, pledge) => {
   const getAdmin = (type, id) => {
     if (type === AdminTypes.DAC) {
       return app.service('dacs').get(id);
-    }
-    if (type === AdminTypes.CAMPAIGN) {
+    } else if (type === AdminTypes.CAMPAIGN) {
       return app.service('campaigns').get(id);
-    }
-    if (type === AdminTypes.MILESTONE) {
+    } else if (type === AdminTypes.MILESTONE) {
       return app.service('milestones').get(id);
     }
     return app.service('users').get(id);

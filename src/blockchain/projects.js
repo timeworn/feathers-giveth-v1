@@ -182,35 +182,39 @@ const projects = (app, liquidPledging) => {
       const date = await getBlockTimestamp(web3, tx.blockNumber);
       const profile = await fetchProfile(project.url);
       return milestones.create(
-        {
-          title: project.name,
-          description: 'Missing Description... Added outside of UI',
-          fiatAmount: milestone.maxAmount === '0' ? undefined : milestone.maxAmount,
-          selectedFiatType: milestone.token === ANY_TOKEN ? undefined : milestone.token.symbol,
-          date,
-          conversionRateTimestamp: milestone.maxAmount === '0' ? undefined : new Date(),
-          conversionRate: milestone.maxAmount === '0' ? undefined : 1,
-          ...profile,
-          projectId,
-          maxAmount: milestone.maxAmount === '0' ? undefined : milestone.maxAmount,
-          reviewerAddress: milestone.reviewer,
-          dacId: milestone.dacId,
-          recipientAddress: isAddress(milestone.recipient) ? milestone.recipient : undefined,
-          recipientId: !isAddress(milestone.recipient) ? milestone.recipient : undefined,
-          campaignReviewerAddress: milestone.campaignReviewer,
-          campaignId: campaign._id,
-          txHash: tx.hash,
-          pluginAddress: project.plugin,
-          url: project.url,
-          ownerAddress: milestone.ownerAddress,
-          token: milestone.token,
-          status: milestone.status,
-          totalDonated: '0',
-          currentBalance: '0',
-          donationCount: 0,
-          mined: true,
-          type: milestone.type,
-        },
+        Object.assign(
+          {
+            title: project.name,
+            description: 'Missing Description... Added outside of UI',
+            fiatAmount: milestone.maxAmount === '0' ? undefined : milestone.maxAmount,
+            selectedFiatType: milestone.token === ANY_TOKEN ? undefined : milestone.token.symbol,
+            date,
+            conversionRateTimestamp: milestone.maxAmount === '0' ? undefined : new Date(),
+            conversionRate: milestone.maxAmount === '0' ? undefined : 1,
+          },
+          profile,
+          {
+            projectId,
+            maxAmount: milestone.maxAmount === '0' ? undefined : milestone.maxAmount,
+            reviewerAddress: milestone.reviewer,
+            dacId: milestone.dacId,
+            recipientAddress: isAddress(milestone.recipient) ? milestone.recipient : undefined,
+            recipientId: !isAddress(milestone.recipient) ? milestone.recipient : undefined,
+            campaignReviewerAddress: milestone.campaignReviewer,
+            campaignId: campaign._id,
+            txHash: tx.hash,
+            pluginAddress: project.plugin,
+            url: project.url,
+            ownerAddress: milestone.ownerAddress,
+            token: milestone.token,
+            status: milestone.status,
+            totalDonated: '0',
+            currentBalance: '0',
+            donationCount: 0,
+            mined: true,
+            type: milestone.type,
+          },
+        ),
         {
           eventTxHash: tx.hash,
           performedByAddress: tx.from,
@@ -254,6 +258,7 @@ const projects = (app, liquidPledging) => {
         projectId,
         ownerAddress: tx.from,
         coownerAddress: '0x0',
+        fundsForwarder: '0x0',
         pluginAddress: project.plugin,
         reviewerAddress,
         title: project.name,
@@ -356,9 +361,7 @@ const projects = (app, liquidPledging) => {
       }
 
       const profile = await fetchProfile(project.url);
-      const mutation = {
-        title: project.name,
-        ...profile,
+      const mutation = Object.assign({ title: project.name }, profile, {
         projectId,
         maxAmount: maxAmount === '0' ? undefined : maxAmount,
         reviewerAddress: reviewer,
@@ -372,7 +375,7 @@ const projects = (app, liquidPledging) => {
         token,
         type,
         mined: true,
-      };
+      });
 
       return milestones.patch(milestone._id, mutation, {
         eventTxHash: txHash,
@@ -444,9 +447,7 @@ const projects = (app, liquidPledging) => {
       }
 
       const profile = await fetchProfile(project.url);
-      const mutation = {
-        title: project.name,
-        ...profile,
+      const mutation = Object.assign({ title: project.name }, profile, {
         projectId,
         reviewerAddress: reviewer,
         pluginAddress: project.plugin,
@@ -454,7 +455,7 @@ const projects = (app, liquidPledging) => {
         status: canceled ? CampaignStatus.CANCELED : CampaignStatus.ACTIVE,
         url: project.url,
         mined: true,
-      };
+      });
 
       return campaigns.patch(campaign._id, mutation);
     } catch (err) {
@@ -544,15 +545,14 @@ const projects = (app, liquidPledging) => {
   async function createToDonation(donation, txHash) {
     const revertToDonation = await getMostRecentDonationNotCanceled(donation._id);
 
-    const newDonation = {
-      ...revertToDonation,
+    const newDonation = Object.assign({}, revertToDonation, {
       txHash,
       amountRemaining: donation.amountRemaining,
       canceledPledgeId: donation.pledgeId,
       parentDonations: [donation._id],
       isReturn: true,
       mined: true,
-    };
+    });
     delete newDonation._id;
 
     return donations.create(newDonation);
