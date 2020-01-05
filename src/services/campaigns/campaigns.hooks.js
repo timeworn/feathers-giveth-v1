@@ -94,11 +94,10 @@ const addMilestoneCounts = () => context => {
     promises = [countMilestones(items, service)];
   }
 
-  return Promise.all(promises).then(
-    results =>
-      Array.isArray(items)
-        ? commons.replaceItems(context, results)
-        : commons.replaceItems(context, results[0]),
+  return Promise.all(promises).then(results =>
+    Array.isArray(items)
+      ? commons.replaceItems(context, results)
+      : commons.replaceItems(context, results[0]),
   );
 };
 
