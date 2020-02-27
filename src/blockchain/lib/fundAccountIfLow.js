@@ -1,5 +1,5 @@
-const { toBN } = require('web3-utils');
 const lockNonceAndSendTransaction = require('./lockNonceAndSendTransaction');
+const { toBN } = require('web3-utils');
 
 /**
  * Send funds to an account if the currentBal is <
