@@ -28,14 +28,7 @@ const updateEntity = async (app, id, type) => {
     Object.assign(donationQuery, {
       delegateTypeId: id,
       delegateType: AdminTypes.DAC,
-      $and: [
-        {
-          $or: [{ intendedProjectId: 0 }, { intendedProjectId: undefined }],
-        },
-        {
-          $or: [{ parentDonations: { $not: { $size: 0 } } }, { amountRemaining: { $ne: '0' } }],
-        },
-      ],
+      $or: [{ intendedProjectId: 0 }, { intendedProjectId: undefined }],
     });
   } else if (type === AdminTypes.CAMPAIGN) {
     Object.assign(donationQuery, {
@@ -130,9 +123,8 @@ const updateEntity = async (app, id, type) => {
       type === AdminTypes.MILESTONE &&
       donationCounters.length > 0 &&
       entity.token.foreignAddress !== ANY_TOKEN.foreignAddress &&
-      entity.maxAmount.sub(
-        donationCounters.find(dc => dc.symbol === entity.token.symbol).totalDonated,
-      ) < 10000000000;
+      entity.maxAmount ===
+        donationCounters.find(dc => dc.symbol === entity.token.symbol).totalDonated.toString();
 
     const peopleCount = new Set(donations.map(d => d.giverAddress)).size;
 

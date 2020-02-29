@@ -543,15 +543,14 @@ const projects = (app, liquidPledging) => {
   }
 
   async function createToDonation(donation, txHash) {
-    const { amountRemaining, pledgeId, _id } = donation;
-    const revertToDonation = await getMostRecentDonationNotCanceled(_id);
+    const revertToDonation = await getMostRecentDonationNotCanceled(donation._id);
+
     const newDonation = {
       ...revertToDonation,
       txHash,
-      amount: amountRemaining,
-      amountRemaining,
-      canceledPledgeId: pledgeId,
-      parentDonations: [_id],
+      amountRemaining: donation.amountRemaining,
+      canceledPledgeId: donation.pledgeId,
+      parentDonations: [donation._id],
       isReturn: true,
       mined: true,
     };
