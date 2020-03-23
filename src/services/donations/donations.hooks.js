@@ -12,7 +12,6 @@ const { MilestoneStatus } = require('../../models/milestones.model');
 const {
   getHourlyUSDCryptoConversion,
 } = require('../../services/conversionRates/getConversionRatesService');
-const { ZERO_ADDRESS } = require('../../blockchain/lib/web3Helpers');
 
 const { updateDonationEntityCountersHook } = require('./updateEntityCounters');
 
@@ -287,33 +286,30 @@ const updateMilestoneIfNotPledged = () => async context => {
   commons.checkContext(context, 'before', ['create']);
 
   const { data: donation } = context;
-  const { COMMITTED, PAYING, PAID } = DonationStatus;
-
-  if (donation.ownerType === AdminTypes.MILESTONE && [PAYING, PAID].includes(donation.status)) {
+  if (
+    donation.ownerType === AdminTypes.MILESTONE &&
+    [DonationStatus.PAYING, DonationStatus.PAID].includes(donation.status)
+  ) {
     const milestone = await context.app.service('milestones').get(donation.ownerTypeId);
-    const { maxAmount, reviewerAddress, fullyFunded } = milestone;
-
-    // never set uncapped or without-reviewer non-fullyFunded milestones as PAID
-    const hasReviewer = reviewerAddress && reviewerAddress !== ZERO_ADDRESS;
-    if (!maxAmount || (!fullyFunded && !hasReviewer)) return;
+    // never set uncapped or non-fullyFunded milestones as PAID
+    if (!milestone.maxAmount || !milestone.fullyFunded) return;
 
     const donations = await context.app.service('donations').find({
       paginate: false,
       query: {
-        ownerTypeId: donation.ownerTypeId,
-        status: { $in: [COMMITTED, PAYING] },
+        status: { $in: [DonationStatus.COMMITTED, DonationStatus.PAYING] },
         amountRemaining: { $ne: '0' },
       },
     });
 
     // if there are still committed donations, don't mark the as paid or paying
-    if (donations.some(d => d.status === COMMITTED)) return;
+    if (donations.some(d => d.status === DonationStatus.COMMITTED)) return;
 
-    const hasPayingDonation = donations.some(d => d.status === PAYING);
+    const atLeastOneDonationPaying = donations.some(d => d.status === DonationStatus.PAYING);
 
     context.app.service('milestones').patch(donation.ownerTypeId, {
       status:
-        donation.status === PAYING || hasPayingDonation
+        donation.status === atLeastOneDonationPaying || DonationStatus.PAYING
           ? MilestoneStatus.PAYING
           : MilestoneStatus.PAID,
     });

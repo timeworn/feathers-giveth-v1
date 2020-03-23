@@ -1,9 +1,8 @@
 /* eslint-disable no-console */
 const mongoose = require('mongoose');
 require('mongoose-long')(mongoose);
-const { ZERO_ADDRESS } = require('../../src/blockchain/lib/web3Helpers');
 
-const configFileName = 'beta'; // default or beta
+const configFileName = 'default'; // default or beta
 
 // eslint-disable-next-line import/no-dynamic-require
 const config = require(`../../config/${configFileName}.json`);
@@ -56,13 +55,8 @@ const eventToStatus = {
 const getExpectedStatus = (events, milestone) => {
   const lastEvent = events.pop();
   if (lastEvent === 'PaymentCollected') {
-    const { maxAmount, donationCounters, fullyFunded, reviewerAddress } = milestone;
-    const hasReviewer = reviewerAddress && reviewerAddress !== ZERO_ADDRESS;
-    if (
-      maxAmount &&
-      (fullyFunded || hasReviewer) &&
-      donationCounters[0].currentBalance.toString() === '0'
-    ) {
+    const { maxAmount, donationCounters, fullyFunded } = milestone;
+    if (maxAmount && fullyFunded && donationCounters[0].currentBalance.toString() === '0') {
       return PAID;
     }
     return getExpectedStatus(events, milestone);
@@ -75,15 +69,7 @@ const main = async () => {
   const milestoneMap = new Map();
 
   await Milestones.find({ projectId: { $gt: 0 } })
-    .select([
-      '_id',
-      'projectId',
-      'maxAmount',
-      'fullyFunded',
-      'reviewerAddress',
-      'status',
-      'donationCounters',
-    ])
+    .select(['_id', 'projectId', 'maxAmount', 'fullyFunded', 'status', 'donationCounters'])
     .cursor()
     .eachAsync(
       m => {
@@ -120,14 +106,12 @@ const main = async () => {
     const expectedStatus = getExpectedStatus(events, milestone);
 
     if (expectedStatus !== status) {
-      const { maxAmount, _id, fullyFunded, donationCounters, reviewerAddress } = milestone;
+      const { maxAmount, _id, fullyFunded, donationCounters } = milestone;
       message += `Milestone ${_id.toString()} status is ${status} but should be ${expectedStatus}\n`;
 
       if (maxAmount) message += `Max Amount: ${maxAmount.toString()}\n`;
 
       if (fullyFunded !== undefined) message += `Fully Funded: ${fullyFunded}\n`;
-
-      if (reviewerAddress !== undefined) message += `Reviewer Address: ${reviewerAddress}\n`;
 
       donationCounters.forEach(dc => {
         message += `${dc.name} balance is ${dc.currentBalance.toString()}\n`;
