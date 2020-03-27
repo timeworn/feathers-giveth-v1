@@ -147,56 +147,38 @@ module.exports = function registerService() {
       paginate: false,
     });
 
-    const query = {
-      status: 'Committed',
-      ownerTypeId: { $in: [id, ...milestones.map(m => m._id)] },
-      $select: [
-        '_id',
-        'giverAddress',
-        'ownerType',
-        'ownerTypeId',
-        'txHash',
-        'homeTxHash',
-        'amount',
-        'createdAt',
-        'token',
-        'parentDonations',
-      ],
-    };
-
-    let totalCount = 0;
-    let cache = [];
-    let noMoreData = false;
+    let skip = 0;
 
     const readable = new Stream.Readable({
       read() {
-        if (cache.length > 0) {
-          readable.push(cache.shift());
-          return;
-        }
-
-        if (noMoreData) {
-          readable.push(null);
-          return;
-        }
-
         donationService
           .find({
             query: {
-              ...query,
-              $skip: totalCount,
-              $limit: 20,
+              status: 'Committed',
+              ownerTypeId: { $in: [id, ...milestones.map(m => m._id)] },
+              $skip: skip,
+              $limit: 10,
+              $select: [
+                '_id',
+                'giverAddress',
+                'ownerType',
+                'ownerTypeId',
+                'txHash',
+                'homeTxHash',
+                'amount',
+                'createdAt',
+                'token',
+                'parentDonations',
+              ],
             },
             schema: 'includeTypeAndGiverDetails',
           })
           .then(result => {
             const { data } = result;
-            totalCount += data.length;
-            if (totalCount === result.total) {
-              noMoreData = true;
-            }
-            cache = data;
-            readable.push(cache.shift());
+            data.forEach(i => readable.push(i));
+            skip += data.length;
+
+            if (skip === result.total) readable.push(null);
           });
       },
       objectMode: true,
@@ -211,13 +193,7 @@ module.exports = function registerService() {
         return { error: 400 };
       }
 
-      const result = await campaignService.find({
-        query: {
-          _id: id,
-          $limit: 1,
-          $select: [],
-        },
-      });
+      const result = await campaignService.find({ query: { _id: id }, $select: ['id'] });
       if (result.total !== 1) {
         return { error: 404 };
       }
@@ -227,13 +203,15 @@ module.exports = function registerService() {
   };
   // Initialize our service with any options it requires
   app.use('/campaigncsv/', csvService, async (req, res, next) => {
-    res.type('csv');
     const { error, campaignId } = res.data;
 
     if (error) {
       res.status(error).end();
       return;
     }
+
+    res.type('csv');
+    res.setHeader('Content-disposition', `attachment; filename=${campaignId}.csv`);
 
     const donationStream = await getDonationStream(campaignId);
     const json2csv = new Transform({ fields }, { objectMode: true });
