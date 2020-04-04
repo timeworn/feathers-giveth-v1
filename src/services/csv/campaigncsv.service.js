@@ -6,7 +6,52 @@ const { ObjectId } = require('mongoose').Types;
 const { AdminTypes } = require('../../models/pledgeAdmins.model');
 const { DonationStatus } = require('../../models/donations.model');
 
-module.exports = function csv() {
+const fields = [
+  {
+    label: 'Giver Address',
+    value: 'from',
+    default: 'NULL',
+  },
+  {
+    label: 'Giver Name',
+    value: 'fromName',
+    default: 'Anonymous',
+  },
+  {
+    label: 'Intended Project',
+    value: 'to',
+  },
+  {
+    label: 'Intended Project Title',
+    value: 'toName',
+  },
+  {
+    label: 'Transaction Hash',
+    value: 'txHash',
+  },
+  {
+    label: 'Amount',
+    value: 'amount',
+  },
+  {
+    label: 'Action',
+    value: 'action',
+  },
+  {
+    label: 'Date',
+    value: 'date',
+  },
+  {
+    label: 'Transaction Etherscan Link',
+    value: 'etherscanLink',
+  },
+  {
+    label: 'Home Transaction Etherscan Link',
+    value: 'homeEtherscanLink',
+  },
+];
+
+module.exports = function registerService() {
   const app = this;
 
   const donationService = app.service('donations');
@@ -15,6 +60,8 @@ module.exports = function csv() {
 
   const dappUrl = app.get('dappUrl');
   const { etherscan, homeEtherscan } = app.get('blockchain');
+
+  const stringIsEmpty = s => s === undefined || s === null || s === '';
 
   const newDonationTransform = () => {
     const getEntityLink = (entity, type) => {
@@ -31,19 +78,19 @@ module.exports = function csv() {
     };
 
     const getEtherscanLink = txHash => {
-      if (!etherscan || !txHash) return undefined;
+      if (stringIsEmpty(etherscan) || stringIsEmpty(txHash)) return undefined;
 
       return `${etherscan}tx/${txHash}`;
     };
 
     const getHomeEtherscanLink = txHash => {
-      if (!homeEtherscan || !txHash) return undefined;
+      if (stringIsEmpty(homeEtherscan) || stringIsEmpty(txHash)) return undefined;
 
       return `${homeEtherscan}tx/${txHash}`;
     };
 
     const isDelegate = async parentDonationId => {
-      if (!parentDonationId) return false;
+      if (stringIsEmpty(parentDonationId)) return false;
 
       const [parent] = await donationService.find({
         query: {
@@ -100,56 +147,38 @@ module.exports = function csv() {
       paginate: false,
     });
 
-    const query = {
-      status: 'Committed',
-      ownerTypeId: { $in: [id, ...milestones.map(m => m._id)] },
-      $select: [
-        '_id',
-        'giverAddress',
-        'ownerType',
-        'ownerTypeId',
-        'txHash',
-        'homeTxHash',
-        'amount',
-        'createdAt',
-        'token',
-        'parentDonations',
-      ],
-    };
-
-    let totalCount = 0;
-    let cache = [];
-    let noMoreData = false;
+    let skip = 0;
 
     const readable = new Stream.Readable({
       read() {
-        if (cache.length > 0) {
-          readable.push(cache.shift());
-          return;
-        }
-
-        if (noMoreData) {
-          readable.push(null);
-          return;
-        }
-
         donationService
           .find({
             query: {
-              ...query,
-              $skip: totalCount,
-              $limit: 20,
+              status: 'Committed',
+              ownerTypeId: { $in: [id, ...milestones.map(m => m._id)] },
+              $skip: skip,
+              $limit: 10,
+              $select: [
+                '_id',
+                'giverAddress',
+                'ownerType',
+                'ownerTypeId',
+                'txHash',
+                'homeTxHash',
+                'amount',
+                'createdAt',
+                'token',
+                'parentDonations',
+              ],
             },
             schema: 'includeTypeAndGiverDetails',
           })
           .then(result => {
             const { data } = result;
-            totalCount += data.length;
-            if (totalCount === result.total) {
-              noMoreData = true;
-            }
-            cache = data;
-            readable.push(cache.shift());
+            data.forEach(i => readable.push(i));
+            skip += data.length;
+
+            if (skip === result.total) readable.push(null);
           });
       },
       objectMode: true,
@@ -158,90 +187,23 @@ module.exports = function csv() {
     return readable;
   };
 
-  const csvService = {
-    async get(id) {
-      if (!id || !ObjectId.isValid(id)) {
-        return { error: 400 };
-      }
-
-      const result = await campaignService.find({
-        query: {
-          _id: id,
-          $limit: 1,
-          $select: [],
-        },
-      });
-      if (result.total !== 1) {
-        return { error: 404 };
-      }
-
-      return { campaignId: id };
-    },
-  };
-
-  const newJson2Csv = () => {
-    const fields = [
-      {
-        label: 'Giver Address',
-        value: 'from',
-        default: 'NULL',
-      },
-      {
-        label: 'Giver Name',
-        value: 'fromName',
-        default: 'Anonymous',
-      },
-      {
-        label: 'Intended Project',
-        value: 'to',
-      },
-      {
-        label: 'Intended Project Title',
-        value: 'toName',
-      },
-      {
-        label: 'Transaction Hash',
-        value: 'txHash',
-      },
-      {
-        label: 'Amount',
-        value: 'amount',
-      },
-      {
-        label: 'Action',
-        value: 'action',
-      },
-      {
-        label: 'Date',
-        value: 'date',
-      },
-      {
-        label: 'Transaction Etherscan Link',
-        value: 'etherscanLink',
-      },
-      {
-        label: 'Home Transaction Etherscan Link',
-        value: 'homeEtherscanLink',
-      },
-    ];
-
-    return new Transform({ fields }, { objectMode: true });
-  };
-
   // Initialize our service with any options it requires
-  app.use('/campaigncsv/', csvService, async (req, res, next) => {
-    const { error, campaignId } = res.data;
-
-    if (error) {
-      res.status(error).end();
+  app.use('/campaigncsv/:campaignId', async (req, res, next) => {
+    res.type('csv');
+    const { campaignId } = req.params;
+    if (!campaignId || !ObjectId.isValid(campaignId)) {
+      res.status(400).end();
       return;
     }
 
-    res.type('csv');
-    res.setHeader('Content-disposition', `attachment; filename=${campaignId}.csv`);
+    const result = await campaignService.find({ _id: campaignId });
+    if (result.total !== 1) {
+      res.status(404).end();
+      return;
+    }
 
     const donationStream = await getDonationStream(campaignId);
-    const json2csv = newJson2Csv();
+    const json2csv = new Transform({ fields }, { objectMode: true });
 
     donationStream
       .on('error', next)
