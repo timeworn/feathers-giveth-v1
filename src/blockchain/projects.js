@@ -46,23 +46,21 @@ const projects = (app, liquidPledging) => {
   let lpMilestoneBase;
   let bridgedMilestoneBase;
 
-  async function fetchProfile(url, projectType, projectId) {
+  async function fetchProfile(url) {
     if (!url || url === '') return {};
     const [err, profile] = await to(app.ipfsFetcher(url));
 
     if (err) {
       logger.warn(`error fetching project profile from ${url}`, err);
     } else if (profile && typeof profile === 'object') {
-      app.ipfsPinner(url, 'object', { ownerType: projectType, id: projectId });
+      app.ipfsPinner(url);
       if (profile.image && isIPFS.ipfsPath(profile.image)) {
-        app.ipfsPinner(profile.image, 'image', { ownerType: projectType, ownerId: projectId });
+        app.ipfsPinner(profile.image);
       }
       if (profile.items) {
         profile.items
           .filter(i => i.image && isIPFS.ipfsPath(i.image))
-          .forEach(i =>
-            app.ipfsPinner(i.image, 'image', { ownerType: projectType, ownerId: projectId }),
-          );
+          .forEach(i => app.ipfsPinner(i.image));
       }
     }
     return profile;
@@ -182,7 +180,7 @@ const projects = (app, liquidPledging) => {
 
     try {
       const date = await getBlockTimestamp(web3, tx.blockNumber);
-      const profile = await fetchProfile(project.url, AdminTypes.MILESTONE, projectId);
+      const profile = await fetchProfile(project.url);
       return milestones.create(
         {
           title: project.name,
@@ -358,7 +356,7 @@ const projects = (app, liquidPledging) => {
         return;
       }
 
-      const profile = await fetchProfile(project.url, AdminTypes.MILESTONE, projectId);
+      const profile = await fetchProfile(project.url);
       const mutation = {
         title: project.name,
         ...profile,
@@ -406,7 +404,7 @@ const projects = (app, liquidPledging) => {
 
       const mutation = { title: project.name };
       if (project.url && project.url !== milestone.url) {
-        const profile = await fetchProfile(project.url, AdminTypes.MILESTONE, projectId);
+        const profile = await fetchProfile(project.url);
         Object.assign(mutation, profile);
 
         if (profile.isArchived) {
@@ -446,7 +444,7 @@ const projects = (app, liquidPledging) => {
         return;
       }
 
-      const profile = await fetchProfile(project.url, AdminTypes.CAMPAIGN, projectId);
+      const profile = await fetchProfile(project.url);
       const mutation = {
         title: project.name,
         ...profile,
@@ -480,7 +478,7 @@ const projects = (app, liquidPledging) => {
 
       const mutation = { title: project.name };
       if (project.url && project.url !== campaign.url) {
-        const profile = await fetchProfile(project.url, AdminTypes.CAMPAIGN, projectId);
+        const profile = await fetchProfile(project.url);
         Object.assign(mutation, profile);
       }
       Object.assign(mutation, {
