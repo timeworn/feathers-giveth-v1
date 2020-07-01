@@ -129,7 +129,6 @@ module.exports = {
 
   donationDelegated: (app, data) => {
     data.amount = Number(data.amount) / 10 ** 18;
-     
 
     Object.assign(data, {
       template: 'notification',
@@ -140,10 +139,10 @@ module.exports = {
       text: `
         <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user}</span></p>
         <p>
-          The ${data.delegateType.toUpperCase()} <em>${data.delegateTitle}</em> has proposed a delegation of
+          The ${data.delegateType} <em>${data.delegateTitle}</em> has proposed a delegation of
           <span style="display: block; color: rgb(53, 184, 209); line-height: 72px; font-size: 48px;">
           ${data.amount} ${data.token.symbol}</span> from your donation to
-          ${data.delegateType.toUpperCase()} <em>${data.delegateTitle}</em>.
+          ${data.delegateType} <em>${data.delegateTitle}</em>.
         </p>
         <p>
           You have until ${data.commitTime.toUTCString()} to approve or reject this delegation. If you fail to
@@ -244,9 +243,9 @@ module.exports = {
       title: 'Milestone review requested',
       image: 'Giveth-review-banner-email.png',
       text: `
-        <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user}</span></p>
+        <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user.toUpperCase()}</span></p>
         <p>
-          The milestone <em>${data.milestoneTitle}</em> to the campaign <em>${data.campaignTitle}</em> has been marked as completed by the milestone owner.
+          The milestone <em>${data.milestoneTitle.toUpperCase()}</em> to the campaign <em>${data.campaignTitle.toUpperCase()}</em> has been marked as completed by the milestone owner.
           <br/><br/>
         </p>
           Now is your moment to shine!
