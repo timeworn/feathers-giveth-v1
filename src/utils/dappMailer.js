@@ -170,9 +170,9 @@ module.exports = {
       text: `
         <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user}</span></p>
         <p>
-          A milestone <em>${data.milestoneTitle}</em> for ${data.amount} ${data.token.symbol} has been proposed for your campaign to the campaign <em>${data.campaignTitle}</em>.
+          The milestone <em>${data.milestoneTitle}</em> for <em>${data.amount} ${data.token.symbol}</em> has been proposed to <em>${data.campaignTitle}</em> campaign .
           If you think this is a great idea, then <strong>please approve this milestone within 3 days</strong> to add it to your campaign.
-          If not, then please reject it.
+          If not, then please reject it with comment.
         </p>
       `,
       cta: `See the Milestone`,
@@ -243,9 +243,9 @@ module.exports = {
       title: 'Milestone review requested',
       image: 'Giveth-review-banner-email.png',
       text: `
-        <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user.toUpperCase()}</span></p>
+        <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user}</span></p>
         <p>
-          The milestone <em>${data.milestoneTitle.toUpperCase()}</em> to the campaign <em>${data.campaignTitle.toUpperCase()}</em> has been marked as completed by the milestone owner.
+          The milestone <em>${data.milestoneTitle}</em> to the campaign <em>${data.campaignTitle}</em> has been marked as completed by the milestone owner.
           <br/><br/>
         </p>
           Now is your moment to shine!
