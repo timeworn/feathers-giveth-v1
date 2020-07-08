@@ -134,15 +134,15 @@ module.exports = {
       template: 'notification',
       subject: 'Giveth - Your donation has been delegated!',
       secretIntro: `Take action! Please approve or reject the delegation of ${data.amount} ${data.token.symbol} to the ${data.delegationType} "${data.delegatedToTitle}"!`,
-      title: "Take action! You're donation has been delegated!",
+      title: "Take action! Your donation has been delegated!",
       image: 'Giveth-donation-banner-email.png',
       text: `
         <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user}</span></p>
         <p>
-          The ${data.delegateType} <em>${data.delegateTitle}</em> has proposed a delegation of
+          The ${data.delegateType.toUpperCase()} <em>${data.delegateTitle}</em> has proposed a delegation of
           <span style="display: block; color: rgb(53, 184, 209); line-height: 72px; font-size: 48px;">
           ${data.amount} ${data.token.symbol}</span> from your donation to
-          ${data.delegateType} <em>${data.delegateTitle}</em>.
+          ${data.delegateType.toUpperCase()} <em>${data.delegateTitle}</em>.
         </p>
         <p>
           You have until ${data.commitTime.toUTCString()} to approve or reject this delegation. If you fail to
@@ -243,15 +243,9 @@ module.exports = {
       title: 'Milestone review requested',
       image: 'Giveth-review-banner-email.png',
       text: `
-        <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user
-          .charAt(0)
-          .toUpperCase() + data.user.slice(1)}</span></p>
+        <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user}</span></p>
         <p>
-          The milestone <em>${data.milestoneTitle.charAt(0).toUpperCase() +
-            data.milestoneTitle.slice(1)}</em> to the campaign <em>${data.campaignTitle
-        .charAt(0)
-        .toUpperCase() +
-        data.campaignTitle.slice(1)}</em> has been marked as completed by the milestone owner.
+          The milestone <em>${data.milestoneTitle}</em> to the campaign <em>${data.campaignTitle}</em> has been marked as completed by the milestone owner.
           <br/><br/>
         </p>
           Now is your moment to shine!
