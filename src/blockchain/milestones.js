@@ -1,7 +1,6 @@
 const logger = require('winston');
 const { MilestoneStatus } = require('../models/milestones.model');
 const { DonationStatus } = require('../models/donations.model');
-const { getTransaction } = require('./lib/web3Helpers');
 
 /**
  * object factory to keep feathers cache in sync with milestone contracts
@@ -21,7 +20,7 @@ const milestonesFactory = app => {
       // only interested in milestones we are aware of.
       if (data.length === 1) {
         const m = data[0];
-        const { from } = await getTransaction(app, txHash);
+        const { from } = await app.getWeb3().eth.getTransaction(txHash);
 
         const {
           PAID,
@@ -80,7 +79,7 @@ const milestonesFactory = app => {
       // only interested in milestones we are aware of.
       if (data.length === 1) {
         const m = data[0];
-        const { from } = await getTransaction(app, txHash);
+        const { from } = await app.getWeb3().eth.getTransaction(txHash);
 
         await milestones.patch(
           m._id,
@@ -112,7 +111,7 @@ const milestonesFactory = app => {
       // only interested in milestones we are aware of.
       if (data.length === 1) {
         const m = data[0];
-        const { from } = await getTransaction(app, txHash);
+        const { from } = await app.getWeb3().eth.getTransaction(txHash);
 
         await milestones.patch(
           m._id,
