@@ -78,62 +78,66 @@ const milestoneResolvers = {
     };
   },
   joins: {
-    owner: () => async (milestone, context) => {
+    owner: () => async (milestoneCore, context) => {
+      const milestone = milestoneCore;
       if (!milestone.ownerAddress) return;
-      // eslint-disable-next-line no-param-reassign
       milestone.owner = await context._loaders.user.address.load(milestone.ownerAddress);
     },
 
-    reviewer: () => async (milestone, context) => {
-      const { reviewerAddress } = milestone;
-      if (!reviewerAddress || reviewerAddress === ZERO_ADDRESS) return;
-      // eslint-disable-next-line no-param-reassign
-      milestone.reviewer = await context._loaders.user.address.load(reviewerAddress);
-    },
-
-    campaignReviewer: () => async (milestone, context) => {
-      const { campaignReviewerAddress } = milestone;
-      if (!campaignReviewerAddress || campaignReviewerAddress === ZERO_ADDRESS) {
+    reviewer: () => async (milestoneCore, context) => {
+      const milestone = milestoneCore;
+      if (!milestone.reviewerAddress || milestone.reviewerAddress === ZERO_ADDRESS) {
         return;
       }
 
-      // eslint-disable-next-line no-param-reassign
+      milestone.reviewer = await context._loaders.user.address.load(milestone.reviewerAddress);
+    },
+
+    campaignReviewer: () => async (milestoneCore, context) => {
+      const milestone = milestoneCore;
+      if (
+        !milestone.campaignReviewerAddress ||
+        milestone.campaignReviewerAddress === ZERO_ADDRESS
+      ) {
+        return;
+      }
+
       milestone.campaignReviewer = await context._loaders.user.address.load(
-        campaignReviewerAddress,
+        milestone.campaignReviewerAddress,
       );
     },
 
-    recipient: () => async (milestone, context) => {
-      const { recipientId, recipientAddress } = milestone;
-      if ((!recipientAddress || recipientAddress === ZERO_ADDRESS) && !recipientId) return;
-      if (recipientId) {
+    recipient: () => async (milestoneCore, context) => {
+      const milestone = milestoneCore;
+      if (
+        (!milestone.recipientAddress || milestone.recipientAddress === ZERO_ADDRESS) &&
+        !milestone.recipientId
+      )
+        return;
+      if (milestone.recipientId) {
         // TODO: join recipientId
         // currently the UI only supports the parent campaign. If we ever support more options,
         // then we will need to query pledgeAdmins first to fetch the typeId & type, then query
         // for the correct entity
-        // eslint-disable-next-line no-param-reassign
-        milestone.recipient = await context._loaders.campaign.projectId.load(recipientId);
+        milestone.recipient = await context._loaders.campaign.projectId.load(milestone.recipientId);
       } else {
-        // eslint-disable-next-line no-param-reassign
-        milestone.recipient = await context._loaders.user.address.load(recipientAddress);
+        milestone.recipient = await context._loaders.user.address.load(milestone.recipientAddress);
       }
     },
 
-    pendingRecipient: () => async (milestone, context) => {
-      const { pendingRecipientAddress } = milestone;
-      if (pendingRecipientAddress && pendingRecipientAddress !== ZERO_ADDRESS) {
-        // eslint-disable-next-line no-param-reassign
+    pendingRecipient: () => async (milestoneCore, context) => {
+      const milestone = milestoneCore;
+      if (milestone.pendingRecipientAddress && milestone.pendingRecipientAddress !== ZERO_ADDRESS) {
         milestone.pendingRecipient = await context._loaders.user.address.load(
-          pendingRecipientAddress,
+          milestone.pendingRecipientAddress,
         );
       }
     },
 
-    campaign: () => async (milestone, context) => {
-      const { campaignId } = milestone;
-      if (!campaignId) return;
-      // eslint-disable-next-line no-param-reassign
-      milestone.campaign = await context._loaders.campaign.id.load(campaignId);
+    campaign: () => async (milestoneCore, context) => {
+      const milestone = milestoneCore;
+      if (!milestone.campaignId) return;
+      milestone.campaign = await context._loaders.campaign.id.load(milestone.campaignId);
     },
   },
 };
