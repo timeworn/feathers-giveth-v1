@@ -33,7 +33,7 @@ module.exports = function Conversations(app) {
     },
   );
 
-  conversation.index({ milestoneId: 1, txHash: 1, messageContext: 1 });
+  conversation.index({ milestoneId: 1, txHash: 1, messageContext: 1 }, { unique: true });
 
   return mongooseClient.model('conversation', conversation);
 };
