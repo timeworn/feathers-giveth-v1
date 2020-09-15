@@ -10,43 +10,23 @@ const Notifications = require('../../utils/dappMailer');
  * */
 const sendNotification = () => async context => {
   const { data, app, result, params } = context;
-  const { performedByAddress, eventTxHash } = params;
+  const { performedByAddress } = params;
 
-  const _createConversion = async messageContext => {
-    const service = app.service('conversations');
-    const { proofItems, _id, message } = result;
-
-    // Comment doesn't have hash value and other fields should not be uniq
-    if (messageContext !== 'comment') {
-      const similarConversations = await service.find({
-        paginate: false,
-        query: {
-          milestoneId: _id,
-          messageContext,
-          txHash: eventTxHash,
-        },
-      });
-      // Conversation has been created before
-      if (similarConversations && similarConversations.length > 0) {
-        return;
-      }
-    }
-
-    try {
-      const res = await service.create(
+  const _createConversion = messageContext => {
+    app
+      .service('conversations')
+      .create(
         {
-          milestoneId: _id,
-          message,
-          items: proofItems,
+          milestoneId: result._id,
+          message: result.message,
+          items: result.proofItems,
           messageContext,
-          txHash: eventTxHash,
+          txHash: context.params.eventTxHash,
         },
         { performedByAddress },
-      );
-      logger.info('created conversation!', res._id);
-    } catch (e) {
-      logger.error('could not create conversation', e);
-    }
+      )
+      .then(res => logger.info('created conversation!', res._id))
+      .catch(e => logger.error('could not create conversation', e));
   };
   const {
     REJECTED,
@@ -86,7 +66,7 @@ const sendNotification = () => async context => {
      * This only gets triggered when the txHash is received through a milestone event
      * Which basically means the event is really mined
      * */
-    if (eventTxHash) {
+    if (context.params.eventTxHash) {
       if (data.status === IN_PROGRESS && result.prevStatus === PROPOSED) {
         _createConversion('proposedAccepted');
 
@@ -211,7 +191,9 @@ const sendNotification = () => async context => {
           address: result.recipientAddress,
         });
       }
-    } else if (data.status === REJECTED && result.prevStatus === PROPOSED) {
+    }
+    //  if (!context.params.eventTxHash)
+    else if (data.status === REJECTED && result.prevStatus === PROPOSED) {
       _createConversion('proposedRejected');
 
       // find the milestone owner and send a notification that his/her proposed milestone is rejected
