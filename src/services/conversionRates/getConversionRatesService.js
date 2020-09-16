@@ -25,56 +25,6 @@ const _getRatesDb = async (app, timestamp, symbol = 'ETH') => {
 };
 
 /**
- * Get the rates from the coingecko API
- *
- * @throws Error if fetching the rates from cryptocompare API failed
- *
- * @param {Number} timestamp   Timestamp for which the value should be retrieved
- * @param {Array}  ratestToGet Rates that are missing in the DB and should be retrieved
- * @param {Array}  stableCoins coins whose value equal one usd
- *
- * @return {Object} Rates object in format { EUR: 241, USD: 123 }
- */
-const _getRatesCoinGecko = async (rateSymbol, timestampMS, coingeckoId) => {
-  const today = new Date(new Date().setUTCDate(new Date().getUTCDate()));
-  const todayUTC = today.setUTCHours(0, 0, 0, 0);
-  const todayRounded = Math.round(todayUTC / 1000);
-  const differenceDays = (todayRounded - timestampMS) / 86400;
-  const daysMax = Math.round(differenceDays);
-  const testRep = JSON.parse(
-    await rp(
-      `https://api.coingecko.com/api/v3/coins/${coingeckoId}/market_chart?vs_currency=${rateSymbol}&days=${daysMax}`,
-    ),
-  );
-
-  if (testRep) {
-    let difference = 0;
-    let bestIndex = 0;
-    let bestDifference = Infinity;
-    let i;
-    let cur;
-    let priceTime;
-
-    const { prices } = testRep;
-
-    for (i = 0; i < prices.length; i += 1) {
-      cur = prices[i];
-      const curRounded = Math.round(cur[0] / 1000);
-      priceTime = curRounded;
-      difference = Math.abs(timestampMS - priceTime);
-      if (difference < bestDifference) {
-        bestDifference = difference;
-        bestIndex = i;
-      }
-    }
-    const bestPrice = prices[bestIndex];
-    const someIndex = 1;
-    return bestPrice[someIndex];
-  }
-  return 1;
-};
-
-/**
  * Get the rates from the cryptocompare API
  *
  * @throws Error if fetching the rates from cryptocompare API failed
@@ -85,7 +35,7 @@ const _getRatesCoinGecko = async (rateSymbol, timestampMS, coingeckoId) => {
  *
  * @return {Object} Rates object in format { EUR: 241, USD: 123 }
  */
-const _getRatesCryptocompare = async (timestamp, ratesToGet, symbol, stableCoins, coingeckoId) => {
+const _getRatesCryptocompare = async (timestamp, ratesToGet, symbol, stableCoins) => {
   logger.debug(`Fetching coversion rates from crypto compare for: ${ratesToGet}`);
   const timestampMS = Math.round(timestamp / 1000);
 
@@ -97,17 +47,13 @@ const _getRatesCryptocompare = async (timestamp, ratesToGet, symbol, stableCoins
   const promises = ratesToGet.map(async r => {
     const rateSymbol = stableCoins.includes(r) ? 'USD' : r;
     if (rateSymbol !== requestSymbol) {
-      if (requestSymbol === 'PAN') {
-        rates[r] = await _getRatesCoinGecko(rateSymbol, timestampMS, coingeckoId);
-      } else {
-        const resp = JSON.parse(
-          await rp(
-            `https://min-api.cryptocompare.com/data/dayAvg?fsym=${requestSymbol}&tsym=${rateSymbol}&toTs=${timestampMS}&extraParams=giveth`,
-          ),
-        );
+      const resp = JSON.parse(
+        await rp(
+          `https://min-api.cryptocompare.com/data/dayAvg?fsym=${requestSymbol}&tsym=${rateSymbol}&toTs=${timestampMS}&extraParams=giveth`,
+        ),
+      );
 
-        if (resp && resp[rateSymbol]) rates[r] = resp[rateSymbol];
-      }
+      if (resp && resp[rateSymbol]) rates[r] = resp[rateSymbol];
     } else {
       rates[r] = 1;
     }
@@ -202,18 +148,6 @@ const getConversionRates = async (app, requestedDate, requestedSymbol = 'ETH') =
 
   const fiat = app.get('fiatWhitelist');
   const stableCoins = app.get('stableCoins') || [];
-  const tokens = app.get('activeTokenWhitelist');
-  let coingeckoId = '';
-
-  const keys = Object.keys(tokens);
-  const values = Object.values(tokens);
-  for (let i = 0; i < keys.length; i += 1) {
-    const token = values[i];
-
-    if (token.symbol === requestedSymbol) {
-      coingeckoId = token.coingeckoid;
-    }
-  }
 
   logger.debug(`request eth conversion for timestamp ${timestamp}`);
 
@@ -232,7 +166,6 @@ const getConversionRates = async (app, requestedDate, requestedSymbol = 'ETH') =
       unknownRates,
       requestedSymbol,
       stableCoins,
-      coingeckoId,
     );
     rates = { ...dbRates.rates, ...newRates };
 
