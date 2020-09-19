@@ -183,7 +183,7 @@ module.exports = {
         </p>
       `,
       cta: `See the Milestone`,
-      ctaRelativeUrl: `/campaigns/${data.campaignId}/milestones/${data.milestoneId}`,
+      ctaRelativeUrl: `/my-milestones`,
       unsubscribeType: 'milestone-proposed',
       unsubscribeReason: `You receive this email because you run a Campaign`,
       message: data.message,
