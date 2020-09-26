@@ -208,7 +208,7 @@ module.exports = {
         </p>
       `,
       cta: `Manage Milestone`,
-      ctaRelativeUrl: `/campaigns/${data.campaignId}/milestones/${data.milestoneId}`,
+      ctaRelativeUrl: `/my-milestones`,
       unsubscribeType: 'proposed-milestone-accepted',
       unsubscribeReason: `You receive this email because you run a Milestone`,
       message: data.message,
@@ -233,7 +233,7 @@ module.exports = {
         </p>
       `,
       cta: `Manage Milestone`,
-      ctaRelativeUrl: `/campaigns/${data.campaignId}/milestones/${data.milestoneId}`,
+      ctaRelativeUrl: `/my-milestones`,
       unsubscribeType: 'proposed-milestone-rejected',
       unsubscribeReason: `You receive this email because you proposed a Milestone`,
       message: data.message,
@@ -262,7 +262,7 @@ module.exports = {
         </p>
       `,
       cta: `Review Milestone`,
-      ctaRelativeUrl: `/campaigns/${data.campaignId}/milestones/${data.milestoneId}`,
+      ctaRelativeUrl: `/my-milestones`,
       unsubscribeType: 'milestone-request-review',
       unsubscribeReason: `You receive this email because you run a Milestone`,
       message: data.message,
@@ -288,7 +288,7 @@ module.exports = {
         </p>
       `,
       cta: `Manage Milestone`,
-      ctaRelativeUrl: `/campaigns/${data.campaignId}/milestones/${data.milestoneId}`,
+      ctaRelativeUrl: `/my-milestones`,
       unsubscribeType: 'milestone-review-approved',
       unsubscribeReason: `You receive this email because you run a Milestone`,
       message: data.message,
@@ -312,7 +312,7 @@ module.exports = {
         </p>
       `,
       cta: `Manage Milestone`,
-      ctaRelativeUrl: `/campaigns/${data.campaignId}/milestones/${data.milestoneId}`,
+      ctaRelativeUrl: `/my-milestones`,
       unsubscribeType: 'milestone-review-rejected',
       unsubscribeReason: `You receive this email because you run a Milestone`,
       message: data.message,
@@ -336,7 +336,7 @@ module.exports = {
         </p>
       `,
       cta: `Manage Milestones`,
-      ctaRelativeUrl: `/campaigns/${data.campaignId}/milestones/${data.milestoneId}`,
+      ctaRelativeUrl: `/my-milestones`,
       unsubscribeType: 'milestone-canceled',
       unsubscribeReason: `You receive this email because you run a Milestone`,
       message: data.message,
@@ -362,7 +362,7 @@ module.exports = {
         </p>
       `,
       cta: `See your Milestones`,
-      ctaRelativeUrl: `/campaigns/${data.campaignId}/milestones/${data.milestoneId}`,
+      ctaRelativeUrl: `/my-milestones`,
       unsubscribeType: 'milestone-created',
       unsubscribeReason: `You receive this email because you are the recipient of a Milestone`,
       message: data.message,
@@ -392,7 +392,7 @@ module.exports = {
         }</em> within 48 - 72 hrs.</p>
       `,
       cta: `See your Milestones`,
-      ctaRelativeUrl: `/campaigns/${data.campaignId}/milestones/${data.milestoneId}`,
+      ctaRelativeUrl: `/my-milestones`,
       unsubscribeType: 'milestone-paid',
       unsubscribeReason: `You receive this email because you are the recipient of a Milestone`,
     });
