@@ -28,7 +28,6 @@ const getWhitelist = () => context => {
   const tokenWhitelist = app.get('tokenWhitelist');
   const activeTokenWhitelist = app.get('activeTokenWhitelist') || app.get('tokenWhitelist');
   const fiatWhitelist = app.get('fiatWhitelist');
-  const nativeCurrencyWhitelist = app.get('nativeCurrencyWhitelist');
 
   // find all the users
   return Promise.all([
@@ -43,7 +42,6 @@ const getWhitelist = () => context => {
       tokenWhitelist,
       activeTokenWhitelist,
       fiatWhitelist,
-      nativeCurrencyWhitelist
     };
 
     return context;
