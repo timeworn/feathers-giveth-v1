@@ -327,7 +327,7 @@ module.exports = {
       subject: 'Giveth - Milestone canceled :-(',
       type: 'milestone-canceled',
       secretIntro: `Your Milestone ${data.milestoneTitle} has been canceled.`,
-      title: 'Milestone Canceled',
+      title: 'Milestone canceled.',
       image: 'Giveth-milestone-canceled-banner-email.png',
       text: `
         <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user}</span></p>
@@ -377,7 +377,7 @@ module.exports = {
       subject: 'Giveth - Milestone paid',
       type: 'milestone-paid',
       secretIntro: `Your Milestone ${data.milestoneTitle} has been paid.`,
-      title: 'Milestone Paid',
+      title: 'Milestone paid.',
       image: 'Giveth-milestone-review-approved-banner-email.png',
       text: `
         <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user}</span></p>
