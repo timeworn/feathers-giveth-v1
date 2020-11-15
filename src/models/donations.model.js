@@ -31,13 +31,13 @@ function Donation(app) {
       paymentId: { type: Schema.Types.BN },
       canceledPledgeId: { type: Schema.Types.BN },
       ownerId: { type: Schema.Types.Long, required: true }, // we can use Long here b/c lp only stores adminId in pledges as uint64
-      ownerTypeId: { type: String, required: true, index: true },
+      ownerTypeId: { type: String, required: true },
       ownerType: { type: String, required: true },
       intendedProjectId: { type: Schema.Types.Long }, // we can use Long here b/c lp only stores adminId in pledges as uint64
       intendedProjectTypeId: { type: String },
       intendedProjectType: { type: String },
       delegateId: { type: Schema.Types.Long }, // we can use Long here b/c lp only stores adminId in pledges as uint64
-      delegateTypeId: { type: String, index: true },
+      delegateTypeId: { type: String },
       delegateType: { type: String },
       campaignId: { type: String },
       status: {
@@ -45,12 +45,11 @@ function Donation(app) {
         require: true,
         enum: Object.values(DonationStatus),
         default: DonationStatus.PENDING,
-        index: true,
       },
       txHash: { type: String, index: true },
       homeTxHash: { type: String },
       commitTime: { type: Date },
-      mined: { type: Boolean, default: false, required: true, index: true },
+      mined: { type: Boolean, default: false, required: true },
       parentDonations: { type: [String], default: [], required: true },
       isReturn: { type: Boolean, default: false },
       token: { type: Token, required: true },
@@ -62,8 +61,7 @@ function Donation(app) {
       timestamps: true,
     },
   );
-  donation.index({ updatedAt: 1 });
-  donation.index({ createdAt: 1 });
+
   return mongooseClient.model('donations', donation);
 }
 
