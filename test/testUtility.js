@@ -25,7 +25,9 @@ const assertThrowsAsync = async (fn, errorMessage) => {
 };
 
 const assertNotThrowsAsync = async fn => {
-  let f;
+  let f = () => {
+    // empty function
+  };
   try {
     await fn();
   } catch (e) {
@@ -150,12 +152,6 @@ const SAMPLE_DATA = {
       foreignAddress: '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF',
       symbol: 'ANY_TOKEN',
       decimals: '1',
-    },
-    owner: {
-      address: testAddress,
-      createdAt: '2018-08-22T00:34:52.691Z',
-      updatedAt: '2020-10-22T00:16:39.775Z',
-      email:'test@giveth.io'
     },
     type: 'BridgedMilestone',
     maxAmount: null,
