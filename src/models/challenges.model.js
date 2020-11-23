@@ -15,7 +15,6 @@ module.exports = function Challenge(app) {
       timestamps: true,
     },
   );
-  challenge.index({ updatedAt: 1 });
-  challenge.index({ createdAt: 1 });
+
   return mongooseClient.model('challenge', challenge);
 };
