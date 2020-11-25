@@ -50,6 +50,7 @@ function Milestone(app) {
         type: String,
         require: true,
         enum: Object.values(MilestoneStatus),
+        index: true,
       },
       items: [Item],
       conversionRateTimestamp: { type: Date },
@@ -86,7 +87,7 @@ function Milestone(app) {
       timestamps: true,
     },
   );
-
+  milestone.index({ createdAt: 1 });
   return mongooseClient.model('milestone', milestone);
 }
 

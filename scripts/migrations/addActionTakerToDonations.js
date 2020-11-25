@@ -9,7 +9,7 @@ const configFileName = 'default'; // default or beta
 // eslint-disable-next-line import/no-dynamic-require
 const config = require(`../../config/${configFileName}.json`);
 
-const { nodeUrl, homeNodeUrl } = config.blockchain;
+const { nodeUrl } = config.blockchain;
 
 const appFactory = () => {
   const data = {};
@@ -42,11 +42,8 @@ const instantiateWeb3 = url => {
   return new Web3(provider);
 };
 
-const addMissedDonations = async () => {
-  const txHashes = await Donations.distinct('txHash', {
-    actionTakerAddress: { $exists: false },
-    homeTxHash: { $exists: false },
-  });
+const migrateDonations = async () => {
+  const txHashes = await Donations.distinct('txHash', { actionTakerAddress: { $exists: false } });
 
   if (txHashes.length === 0) return;
 
@@ -71,72 +68,21 @@ const addMissedDonations = async () => {
   await Promise.all(
     promises.map(async promise => {
       const tx = await promise;
-      if (tx) {
-        const { hash, from } = tx;
-        console.log(
-          `Update actionTakerAddress of donation with txHash ${hash} to:\n${from}\n-----------`,
-        );
-        await Donations.update(
-          { txHash: hash },
-          {
-            $set: {
-              actionTakerAddress: from,
-            },
-          },
-          {
-            multi: true,
-          },
-        );
-      }
-    }),
-  );
-};
-
-const addToDirectDonations = async () => {
-  const txHashes = await Donations.distinct('homeTxHash', {
-    homeTxHash: { $exists: true },
-  });
-
-  if (txHashes.length === 0) return;
-
-  const homeWeb3 = instantiateWeb3(homeNodeUrl);
-
-  const batch = new homeWeb3.BatchRequest();
-  const promises = txHashes.map(txHash => {
-    return new Promise((resolve, reject) => {
-      batch.add(
-        homeWeb3.eth.getTransaction.request(txHash, (err, tx) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(tx);
-          }
-        }),
+      const { hash, from } = tx;
+      console.log(
+        `Update actionTakerAddress of donation with txHash ${hash} to:\n${from}\n-----------`,
       );
-    });
-  });
-  batch.execute();
-
-  await Promise.all(
-    promises.map(async promise => {
-      const tx = await promise;
-      if (tx) {
-        const { hash, from } = tx;
-        console.log(
-          `Update actionTakerAddress of donation with txHash ${hash} to:\n${from}\n-----------`,
-        );
-        await Donations.update(
-          { homeTxHash: hash },
-          {
-            $set: {
-              actionTakerAddress: from,
-            },
+      return Donations.update(
+        { txHash: hash },
+        {
+          $set: {
+            actionTakerAddress: from,
           },
-          {
-            multi: true,
-          },
-        );
-      }
+        },
+        {
+          multi: true,
+        },
+      );
     }),
   );
 };
@@ -151,7 +97,7 @@ db.on('error', err => console.error('Could not connect to Mongo', err));
 // once mongo connected, start migration
 db.once('open', () => {
   console.log('Connected to Mongo');
-  Promise.all([addMissedDonations(), addToDirectDonations()]).then(() => {
+  migrateDonations().then(() => {
     return process.exit();
   });
 });

@@ -260,8 +260,8 @@ module.exports = app => {
                 result = {
                   ...result,
                   action: 'Campaign Created',
-                  actor: actionTaker ? actionTaker.name : undefined,
-                  actionOnBehalfOf: `"${campaign.title}" campaign`,
+                  actor: 'Creator',
+                  actionOnBehalfOf: actionTaker ? actionTaker.name : undefined,
                   recipientName: campaign.title,
                   recipientType: 'Campaign',
                   recipient: getEntityLink(campaign, AdminTypes.CAMPAIGN),
