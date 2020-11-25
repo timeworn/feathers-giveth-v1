@@ -327,7 +327,7 @@ module.exports = {
       subject: 'Giveth - Milestone canceled :-(',
       type: 'milestone-canceled',
       secretIntro: `Your Milestone ${data.milestoneTitle} has been canceled.`,
-      title: 'Milestone canceled.',
+      title: 'Milestone Canceled',
       image: 'Giveth-milestone-canceled-banner-email.png',
       text: `
         <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user}</span></p>
@@ -377,7 +377,7 @@ module.exports = {
       subject: 'Giveth - Milestone paid',
       type: 'milestone-paid',
       secretIntro: `Your Milestone ${data.milestoneTitle} has been paid.`,
-      title: 'Milestone paid.',
+      title: 'Milestone Paid',
       image: 'Giveth-milestone-review-approved-banner-email.png',
       text: `
         <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user}</span></p>
@@ -408,6 +408,34 @@ module.exports = {
 
     // not implemented yet
     // sendEmail(app, data);
+    sendEmail(app, data);
+  },
+
+  donationsCollected: (app, data) => {
+    Object.assign(data, {
+      template: 'notification',
+      subject: 'Giveth - Donations collected',
+      type: 'milestone-donations-collected',
+      secretIntro: `Your Milestone ${data.milestoneTitle} has been paid.`,
+      title: 'Milestone Donations Collected',
+      image: 'Giveth-milestone-review-approved-banner-email.png',
+      text: `
+        <p><span style="line-height: 33px; font-size: 22px;">Hi ${data.user}</span></p>
+        <p>The following payments have been initiated for your Milestone <em>${
+          data.milestoneTitle
+        }</em>:</p>
+        <p></p>
+        ${data.conversation.payments.map(p => `<p>${p.amount / 10 ** 18} ${p.symbol}</p>`)}
+        <p></p>
+        <p>You can expect to see these payment(s) to arrive in your wallet <em>${
+          data.address
+        }</em> within 48 - 72 hrs.</p>
+      `,
+      cta: `See your Milestones`,
+      ctaRelativeUrl: `/campaigns/${data.campaignId}/milestones/${data.milestoneId}`,
+      unsubscribeType: 'donations-collected',
+      unsubscribeReason: `You receive this email because you are the recipient of a Milestone`,
+    });
     sendEmail(app, data);
   },
 };

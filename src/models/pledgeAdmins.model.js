@@ -27,6 +27,7 @@ function PledgeAdmin(app) {
       timestamps: true,
     },
   );
+
   return mongooseClient.model('pledgeAdmin', pledgeAdmin);
 }
 
