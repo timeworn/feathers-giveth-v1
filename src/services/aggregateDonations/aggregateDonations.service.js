@@ -79,7 +79,7 @@ module.exports = function aggregateDonations() {
         data: await Promise.all(promises),
         skip: $skip,
         limit: $limit,
-        total: metadata && metadata[0] && metadata[0].total,
+        total: metadata[0].total,
       };
     },
   };

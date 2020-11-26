@@ -316,14 +316,14 @@ const updateMilestoneIfNotPledged = () => async context => {
 };
 
 const addActionTakerAddress = () => async context => {
-  const { txHash, actionTakerAddress, homeTxHash } = context.data;
+  const { txHash, actionTakerAddress } = context.data;
 
-  // Has already added or txHash/homeTxHash is not available
-  if (!(txHash || homeTxHash) || actionTakerAddress) return;
+  // Has already added or txHash is not available
+  if (!txHash || actionTakerAddress) return;
 
   try {
     const { app } = context;
-    const { from } = await getTransaction(app, homeTxHash || txHash, !!homeTxHash);
+    const { from } = await getTransaction(app, txHash);
     context.data.actionTakerAddress = from;
   } catch (e) {
     logger.error(`Error on getting from of transaction: ${txHash}`, e);
