@@ -22,10 +22,32 @@ const $contract = {
         },
       };
     },
+    reviewer: async () => {
+      return {
+        call: {
+          request: () => {
+            return Promise.resolve(generateRandomEtheriumAddress());
+          },
+        },
+      };
+    },
+    isCanceled: async () => {
+      return {
+        call: {
+          request: () => {
+            return Promise.resolve(false);
+          },
+        },
+      };
+    },
   },
 };
 
+function kernel(){
+  return generateRandomEtheriumAddress()
+}
 module.exports = {
   getPledgeAdmin,
   $contract,
+  kernel
 };
