@@ -17,5 +17,6 @@ module.exports = function conversion(app) {
   );
 
   conversionRates.index({ timestamp: 1, symbol: 1 }, { unique: true });
+
   return mongooseClient.model('conversionRates', conversionRates);
 };

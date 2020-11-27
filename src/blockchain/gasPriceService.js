@@ -1,6 +1,6 @@
 const logger = require('winston');
 const rp = require('request-promise');
-const app = require('../app');
+const { getFeatherAppInstance } = require('../app');
 
 const FIVE_MINUTES = 1000 * 60 * 5;
 
@@ -8,9 +8,14 @@ const FIVE_MINUTES = 1000 * 60 * 5;
 // Usage within app: app.get('gasPrice')
 // Returns a full json at the moment
 const queryGasPrice = () => {
+  const app = getFeatherAppInstance();
   logger.debug('fetching gas price = require(ethgasstation');
   return rp('https://ethgasstation.info/json/ethgasAPI.json')
-    .then(resp => app.set('gasPrice', JSON.parse(resp)))
+    .then(resp => {
+      const data = JSON.parse(resp);
+      app.set('gasPrice', data);
+      return data;
+    })
     .catch(e => {
       logger.error('could not fetch gas = require(ethgasstation', e.statusCode || e);
     });
