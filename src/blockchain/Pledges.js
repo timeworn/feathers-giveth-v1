@@ -251,7 +251,7 @@ const pledges = (app, liquidPledging) => {
     // find token
     const token = _retreiveTokenFromPledge(app, fromPledge);
 
-    const [{ comment, giverAddress, ownerType, status, txNonce, actionTakerAddress }] = donations;
+    const [{ comment, giverAddress, ownerType, status, txNonce }] = donations;
 
     const mutation = {
       amount,
@@ -270,7 +270,7 @@ const pledges = (app, liquidPledging) => {
       token,
     };
 
-    // Propagate comment and actionTakerAddress for donations created by direct donating
+    // Propagate comment
     if (
       donations.length === 1 &&
       ownerType === AdminTypes.GIVER &&
@@ -278,7 +278,6 @@ const pledges = (app, liquidPledging) => {
       txNonce // User has created the parent donation, not us
     ) {
       mutation.comment = comment;
-      mutation.actionTakerAddress = actionTakerAddress;
     }
     if (initialTransfer) {
       // always set homeTx on mutation b/c ui checks if homeTxHash exists to check for initial donations
