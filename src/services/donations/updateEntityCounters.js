@@ -1,14 +1,13 @@
 const { checkContext } = require('feathers-hooks-common');
 const { toBN } = require('web3-utils');
 const logger = require('winston');
+const semaphore = require('semaphore');
 
 const _groupBy = require('lodash.groupby');
 const { AdminTypes } = require('../../models/pledgeAdmins.model');
 const { DonationStatus } = require('../../models/donations.model');
 const { MilestoneTypes } = require('../../models/milestones.model');
 const { ANY_TOKEN } = require('../../blockchain/lib/web3Helpers');
-const { donationsCollected } = require('../../utils/dappMailer');
-const { EventStatus } = require('../../models/events.model');
 
 const ENTITY_SERVICES = {
   [AdminTypes.DAC]: 'dacs',
@@ -148,93 +147,75 @@ const updateEntity = async (app, id, type) => {
   }
 };
 
-function getDonationPaymentsByToken(donations) {
-  const tokens = {};
-  donations.forEach(donation => {
-    const { amount, token } = donation;
-    const { symbol, decimals } = token;
-    if (tokens[symbol]) {
-      tokens[symbol].amount = toBN(tokens[symbol].amount)
-        .add(toBN(amount))
-        .toString();
-    } else {
-      tokens[symbol] = {
-        amount,
-        decimals,
-      };
-    }
-  });
-  const payments = Object.keys(tokens).map(symbol => {
-    return {
-      symbol,
-      amount: tokens[symbol].amount,
-      decimals: tokens[symbol].decimals,
-    };
-  });
-  return payments;
-}
+const conversationSem = semaphore();
 
-const createPaymentConversation = async (context, donation, milestoneId) => {
+const createConversation = async (context, donation, milestoneId) => {
   const { app, method } = context;
   // Create payment conversation
   if (method === 'create' && donation.status === DonationStatus.PAID) {
-    const { txHash } = donation;
-    const events = await app.service('events').find({
-      paginate: false,
-      query: {
-        transactionHash: donation.txHash,
-        event: 'Transfer',
-        status: { $nin: [EventStatus.PROCESSED, EventStatus.FAILED] },
-      },
-    });
-    // we should make sure all transfer events for this transactionHash settled except the last one so the length should be one
-    if (events.length !== 1) {
-      logger.info(
-        'Dont create conversation when there is another unProcessed Transfer events except the last one',
-      );
-      return;
-    }
+    app
+      .service('milestones')
+      .get(milestoneId)
+      .then(milestone => {
+        const { recipient } = milestone;
+        const { txHash, amount } = donation;
+        const { symbol, decimals } = donation.token;
+        const service = app.service('conversations');
 
-    try {
-      const milestone = await app.service('milestones').get(milestoneId);
-      const { recipient } = milestone;
-      const donations = await app.service('donations').find({
-        paginate: false,
-        query: {
-          ownerTypeId: milestoneId,
-          status: DonationStatus.PAID,
-          txHash,
-        },
-      });
+        conversationSem.take(async () => {
+          try {
+            const data = await service.find({
+              paginate: false,
+              query: {
+                milestoneId,
+                messageContext: 'payment',
+                txHash,
+                $limit: 1,
+              },
+            });
 
-      const payments = getDonationPaymentsByToken(donations);
-      const conversation = await app.service('conversations').create(
-        {
-          milestoneId,
-          messageContext: 'payment',
-          txHash,
-          payments,
-          recipientAddress: recipient.address,
-        },
-        { performedByAddress: donation.actionTakerAddress },
-      );
-      if (milestone.recipient && milestone.recipient.email) {
-        // now we dont send donations-collected email for milestones that don't have recipient
-        await donationsCollected(app, {
-          recipient: milestone.recipient.email,
-          user: milestone.recipient.name,
-          milestoneTitle: milestone.title,
-          milestoneId: milestone._id,
-          campaignId: milestone.campaignId,
-          conversation,
+            if (data.length > 0) {
+              const conversation = data[0];
+              const payments = conversation.payments || [];
+              const index = payments.findIndex(p => p.symbol === symbol);
+
+              if (index !== -1) {
+                payments[index].amount = toBN(amount)
+                  .add(toBN(payments[index].amount))
+                  .toString();
+              } else {
+                payments.push({ symbol, amount, tokenDecimals: decimals });
+              }
+
+              await service.patch(conversation._id, {
+                payments,
+              });
+            } else {
+              await service.create(
+                {
+                  milestoneId,
+                  messageContext: 'payment',
+                  txHash,
+                  payments: [
+                    {
+                      amount,
+                      symbol,
+                      tokenDecimals: decimals,
+                    },
+                  ],
+                  recipientAddress: recipient.address,
+                },
+                { performedByAddress: donation.actionTakerAddress },
+              );
+            }
+          } catch (e) {
+            logger.error('could not create conversation', e);
+          } finally {
+            conversationSem.leave();
+          }
         });
-      }
-      logger.info(
-        `Currently we dont send email for milestones who doesnt have recipient, milestoneId: ${milestoneId}`,
-      );
-    } catch (e) {
-      logger.error('createConversation and send collectedEmail error', e);
-    }
+      })
+      .catch(e => logger.error('Could not find milestone', e));
   }
 };
 
@@ -270,7 +251,7 @@ const updateDonationEntity = async (context, donation) => {
   } else if (donation.ownerType === AdminTypes.MILESTONE) {
     type = AdminTypes.MILESTONE;
     entityId = donation.ownerTypeId;
-    createPaymentConversation(context, donation, entityId);
+    createConversation(context, donation, entityId);
   } else {
     return;
   }
@@ -292,6 +273,4 @@ const updateDonationEntityCountersHook = () => async context => {
 module.exports = {
   updateEntity,
   updateDonationEntityCountersHook,
-  createPaymentConversation,
-  getDonationPaymentsByToken,
 };
