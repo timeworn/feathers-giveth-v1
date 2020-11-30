@@ -1,22 +1,14 @@
-function createModel(app) {
-  const mongooseClient = app.get('mongooseClient');
-  const { Schema } = mongooseClient;
-  const token = new Schema({
-      name: { type: String, required: true },
-      address: { type: String, required: true },
-      foreignAddress: { type: String, required: true },
-      symbol: { type: String, required: true, unique: true },
-      decimals: { type: String, required: true },
-      rateEqSymbol: { type: String },
+const mongoose = require('mongoose');
+require('./mongoose-bn')(mongoose);
 
-    },
-    {
-      timestamps: true,
-    });
+const { Schema } = mongoose;
 
-  return mongooseClient.model('token', token);
-}
+const Token = new Schema({
+  name: { type: String, required: true },
+  address: { type: String, required: true },
+  foreignAddress: { type: String, required: true },
+  symbol: { type: String, required: true },
+  decimals: { type: String, required: true },
+});
 
-module.exports = {
-  createModel,
-};
+module.exports = Token;

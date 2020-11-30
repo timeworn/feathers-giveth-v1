@@ -135,15 +135,6 @@ const milestoneResolvers = {
       // eslint-disable-next-line no-param-reassign
       milestone.campaign = await context._loaders.campaign.id.load(campaignId);
     },
-
-    token: () => async (milestone, context) => {
-      const { tokenSymbol } = milestone;
-      const tokens = (await context.app.service('tokens')
-        .find({ query: { symbol: tokenSymbol } })).data;
-      if (tokens && tokens.length === 1) {
-        milestone.token = tokens[0];
-      }
-    },
   },
 };
 
@@ -189,7 +180,6 @@ const restrict = () => context => {
       'selectedFiatType',
       'date',
       'token',
-      'tokenSymbol',
       'type',
     ];
     keysToRemove.forEach(key => delete data[key]);
@@ -249,15 +239,6 @@ const storePrevState = () => context => {
   }
 
   return context;
-};
-
-const convertTokenToTokenSymbol = () => context => {
-  const { data } = context;
-  if (data.token) {
-    data.tokenSymbol = data.token.symbol;
-  }
-  return context;
-
 };
 
 /**
@@ -335,14 +316,8 @@ module.exports = {
       isProjectAllowed(),
       isTokenAllowed(),
       sanitizeHtml('description'),
-      convertTokenToTokenSymbol(),
     ],
-    update: [restrict(),
-      checkMilestoneDates(),
-      ...address,
-      sanitizeHtml('description'),
-      convertTokenToTokenSymbol(),
-    ],
+    update: [restrict(), checkMilestoneDates(), ...address, sanitizeHtml('description')],
     patch: [
       restrict(),
       sanitizeAddress(
@@ -352,7 +327,6 @@ module.exports = {
       sanitizeHtml('description'),
       storePrevState(),
       performedBy(),
-      convertTokenToTokenSymbol(),
     ],
     remove: [canDelete()],
   },
