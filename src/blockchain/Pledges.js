@@ -36,7 +36,6 @@ function logTransferInfo(transferInfo) {
 
 const lpDecoders = eventDecodersFromArtifact(LiquidPledgingArtifact);
 const transferTopics = topicsFromArtifacts([LiquidPledgingArtifact], ['Transfer']);
-
 /**
  * Check if a 'Transfer' is an initial transfer. That is, is this
  * 'Transfer' originate from the original donation call?
@@ -251,7 +250,8 @@ const pledges = (app, liquidPledging) => {
 
     // find token
     const token = _retreiveTokenFromPledge(app, fromPledge);
-    const [{ comment, giverAddress, ownerType, status, txNonce }] = donations;
+
+    const [{ comment, giverAddress, ownerType, status, txNonce, actionTakerAddress }] = donations;
 
     const mutation = {
       amount,
@@ -270,7 +270,7 @@ const pledges = (app, liquidPledging) => {
       token,
     };
 
-    // Propagate comment
+    // Propagate comment and actionTakerAddress for donations created by direct donating
     if (
       donations.length === 1 &&
       ownerType === AdminTypes.GIVER &&
@@ -278,6 +278,7 @@ const pledges = (app, liquidPledging) => {
       txNonce // User has created the parent donation, not us
     ) {
       mutation.comment = comment;
+      mutation.actionTakerAddress = actionTakerAddress;
     }
     if (initialTransfer) {
       // always set homeTx on mutation b/c ui checks if homeTxHash exists to check for initial donations
@@ -372,7 +373,7 @@ const pledges = (app, liquidPledging) => {
       giverAddress: mutation.giverAddress,
       amount: mutation.amount,
       mined: false,
-      tokenSymbol: mutation.token.symbol,
+      'token.symbol': mutation.token.symbol,
     };
     orStatements.push([{ pledgeId: '0' }, { pledgeId: mutation.pledgeId }]);
     if (initialTransfer) {
@@ -403,6 +404,7 @@ const pledges = (app, liquidPledging) => {
       paginate: false,
       query,
     });
+
     if (donations.length === 0) {
       // if this is the second attempt, then create a donation object
       // otherwise, try and process the event later, giving time for
@@ -454,8 +456,9 @@ const pledges = (app, liquidPledging) => {
    */
   async function createToDonation(transferInfo) {
     const mutation = await createToDonationMutation(transferInfo);
+
     // if tx is older then 1 min, set retry = true to instantly create the donation if necessary
-    const r = await createDonation(
+    const r = createDonation(
       mutation,
       transferInfo.initialTransfer,
       isOlderThenAMin(transferInfo.ts),
