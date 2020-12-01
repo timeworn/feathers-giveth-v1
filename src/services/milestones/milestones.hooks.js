@@ -18,6 +18,7 @@ const checkConversionRates = require('./checkConversionRates');
 const sendNotification = require('./sendNotification');
 const checkMilestoneDates = require('./checkMilestoneDates');
 const { getBlockTimestamp, ZERO_ADDRESS } = require('../../blockchain/lib/web3Helpers');
+const { getTokenBySymbol } = require('../../utils/tokenHelper');
 
 const milestoneResolvers = {
   before: context => {
@@ -135,6 +136,14 @@ const milestoneResolvers = {
       // eslint-disable-next-line no-param-reassign
       milestone.campaign = await context._loaders.campaign.id.load(campaignId);
     },
+
+    token: () => async (milestone, context) => {
+      const { tokenSymbol } = milestone;
+      const token = getTokenBySymbol(tokenSymbol)
+      if (token) {
+        milestone.token = token
+      }
+    },
   },
 };
 
@@ -180,6 +189,7 @@ const restrict = () => context => {
       'selectedFiatType',
       'date',
       'token',
+      'tokenSymbol',
       'type',
     ];
     keysToRemove.forEach(key => delete data[key]);
@@ -239,6 +249,15 @@ const storePrevState = () => context => {
   }
 
   return context;
+};
+
+const convertTokenToTokenSymbol = () => context => {
+  const { data } = context;
+  if (data.token) {
+    data.tokenSymbol = data.token.symbol;
+  }
+  return context;
+
 };
 
 /**
@@ -316,8 +335,14 @@ module.exports = {
       isProjectAllowed(),
       isTokenAllowed(),
       sanitizeHtml('description'),
+      convertTokenToTokenSymbol(),
     ],
-    update: [restrict(), checkMilestoneDates(), ...address, sanitizeHtml('description')],
+    update: [restrict(),
+      checkMilestoneDates(),
+      ...address,
+      sanitizeHtml('description'),
+      convertTokenToTokenSymbol(),
+    ],
     patch: [
       restrict(),
       sanitizeAddress(
@@ -327,6 +352,7 @@ module.exports = {
       sanitizeHtml('description'),
       storePrevState(),
       performedBy(),
+      convertTokenToTokenSymbol(),
     ],
     remove: [canDelete()],
   },

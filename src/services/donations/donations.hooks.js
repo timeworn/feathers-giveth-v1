@@ -11,7 +11,7 @@ const { AdminTypes } = require('../../models/pledgeAdmins.model');
 const { MilestoneStatus } = require('../../models/milestones.model');
 const { getHourlyUSDCryptoConversion } = require('../conversionRates/getConversionRatesService');
 const { ZERO_ADDRESS, getTransaction } = require('../../blockchain/lib/web3Helpers');
-
+const { getTokenBySymbol } = require('../../utils/tokenHelper');
 const { updateDonationEntityCountersHook } = require('./updateEntityCounters');
 
 const poSchemas = {
@@ -91,6 +91,29 @@ const poSchemas = {
     ],
   },
 };
+
+
+const donationResolvers = {
+
+  joins: {
+    token: () => async (donation, context) => {
+      const { tokenSymbol } = donation;
+      const token = getTokenBySymbol(tokenSymbol);
+      if (token) {
+        donation.token = token;
+      }
+    },
+  },
+};
+
+const convertTokenToTokenSymbol = () => context => {
+  const { data } = context;
+  if (data.token) {
+    data.tokenSymbol = data.token.symbol;
+  }
+  return context;
+};
+
 
 const setUSDValue = async (context, donation) => {
   if (donation.status === DonationStatus.PENDING) return donation;
@@ -271,8 +294,8 @@ const joinDonationRecipient = (item, context) => {
     .then(c =>
       item.intendedProjectId > 0 && item.intendedProjectType
         ? commons.populate({
-            schema: poSchemas[`po-${item.intendedProjectType.toLowerCase()}-intended`],
-          })(c)
+          schema: poSchemas[`po-${item.intendedProjectType.toLowerCase()}-intended`],
+        })(c)
         : c,
     )
     .then(c => c.result);
@@ -415,18 +438,20 @@ module.exports = {
       }),
       updateMilestoneIfNotPledged(),
       addActionTakerAddress(),
+      convertTokenToTokenSymbol(),
     ],
     update: [commons.disallow()],
     patch: [
       restrict(),
       sanitizeAddress('giverAddress', { validate: true }),
       addActionTakerAddress(),
+      convertTokenToTokenSymbol(),
     ],
     remove: [commons.disallow()],
   },
 
   after: {
-    all: [populateSchema()],
+    all: [commons.fastJoin(donationResolvers), populateSchema()],
     find: [addConfirmations()],
     get: [addConfirmations()],
     create: [
