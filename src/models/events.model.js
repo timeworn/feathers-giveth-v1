@@ -16,14 +16,14 @@ function createModel(app) {
     {
       logIndex: { type: Number, required: true },
       transactionIndex: { type: Number, required: true },
-      transactionHash: { type: String, required: true, index: true },
+      transactionHash: { type: String, required: true },
       blockHash: { type: String, required: true },
       blockNumber: { type: Number, required: true },
       address: { type: String, required: true },
       type: { type: String },
       id: { type: String, required: true },
       returnValues: { type: Object },
-      event: { type: String, index: true },
+      event: { type: String },
       signature: { type: String },
       raw: { type: Object },
       topics: [String],
@@ -40,8 +40,7 @@ function createModel(app) {
       timestamps: true,
     },
   );
-  event.index({ transactionHash: 1, logIndex: 1, transactionIndex: 1, blockNumber: 1, status: 1 });
-  event.index({ transactionHash: 1, event: 1 });
+
   return mongooseClient.model('event', event);
 }
 

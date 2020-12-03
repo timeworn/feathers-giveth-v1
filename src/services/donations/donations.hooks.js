@@ -9,9 +9,9 @@ const addConfirmations = require('../../hooks/addConfirmations');
 const { DonationStatus } = require('../../models/donations.model');
 const { AdminTypes } = require('../../models/pledgeAdmins.model');
 const { MilestoneStatus } = require('../../models/milestones.model');
-const { getHourlyUSDCryptoConversion } = require('../conversionRates/getConversionRatesService');
+const { getHourlyCryptoConversion } = require('../conversionRates/getConversionRatesService');
 const { ZERO_ADDRESS, getTransaction } = require('../../blockchain/lib/web3Helpers');
-const { getTokenByAddress } = require('../../utils/tokenHelper');
+
 const { updateDonationEntityCountersHook } = require('./updateEntityCounters');
 
 const poSchemas = {
@@ -92,26 +92,6 @@ const poSchemas = {
   },
 };
 
-const donationResolvers = {
-  joins: {
-    token: () => async (donation, context) => {
-      const { tokenAddress } = donation;
-      const token = getTokenByAddress(tokenAddress);
-      if (token) {
-        donation.token = token;
-      }
-    },
-  },
-};
-
-const convertTokenToTokenAddress = () => context => {
-  const { data } = context;
-  if (data.token) {
-    data.tokenAddress = data.token.address;
-  }
-  return context;
-};
-
 const setUSDValue = async (context, donation) => {
   if (donation.status === DonationStatus.PENDING) return donation;
 
@@ -134,7 +114,7 @@ const setUSDValue = async (context, donation) => {
 
   const { _id, createdAt, token, amount } = donation;
   try {
-    const { rate } = await getHourlyUSDCryptoConversion(context.app, createdAt, token.symbol);
+    const { rate } = await getHourlyCryptoConversion(context.app, createdAt, token.symbol, 'USD');
 
     if (rate) {
       const usVar = Number(
@@ -435,20 +415,18 @@ module.exports = {
       }),
       updateMilestoneIfNotPledged(),
       addActionTakerAddress(),
-      convertTokenToTokenAddress(),
     ],
     update: [commons.disallow()],
     patch: [
       restrict(),
       sanitizeAddress('giverAddress', { validate: true }),
       addActionTakerAddress(),
-      convertTokenToTokenAddress(),
     ],
     remove: [commons.disallow()],
   },
 
   after: {
-    all: [commons.fastJoin(donationResolvers), populateSchema()],
+    all: [populateSchema()],
     find: [addConfirmations()],
     get: [addConfirmations()],
     create: [

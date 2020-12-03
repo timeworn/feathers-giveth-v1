@@ -18,6 +18,7 @@ function PledgeAdmin(app) {
       type: {
         type: String,
         required: true,
+        index: true,
         enum: Object.values(AdminTypes),
       },
       typeId: { type: String },
@@ -26,6 +27,7 @@ function PledgeAdmin(app) {
       timestamps: true,
     },
   );
+
   return mongooseClient.model('pledgeAdmin', pledgeAdmin);
 }
 
