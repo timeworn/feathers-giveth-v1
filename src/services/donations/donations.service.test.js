@@ -171,8 +171,8 @@ function putDonationsTestCases() {
 }
 
 it('should donations service registration be ok', () => {
-  const service = app.service('donations');
-  assert.ok(service, 'Registered the service');
+  const userService = app.service('donations');
+  assert.ok(userService, 'Registered the service');
 });
 describe(`Test GET ${relativeUrl}`, getDonationsTestCases);
 describe(`Test POST ${relativeUrl}`, postDonationsTestCases);
