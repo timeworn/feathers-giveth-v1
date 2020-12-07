@@ -29,7 +29,7 @@ module.exports = app => {
   const dacService = app.service('dacs');
   const campaignService = app.service('campaigns');
 
-  const newEventTransform = ({ campaign, milestones, pledgeIds }) => {
+  const newEventTransform = ({ campaign, milestones, pledgeIds, canceledPledgeIds }) => {
     const campaignId = campaign._id.toString();
     const campaignBalance = {
       campaignCommitted: {},
@@ -168,27 +168,28 @@ module.exports = app => {
       // Do nothing if payouts is empty
       if (transactionHash) {
         const { ownerEntity, actionTakerAddress, commitTime } = payouts;
-        const { title, _id, pluginAddress, recipientAddress } = ownerEntity;
-        const recipient = (await getUser(recipientAddress)) || {};
-        const actionTaker = await getUser(actionTakerAddress);
-        recipient.address = recipientAddress;
+        const recipient = (await getUser(ownerEntity.recipientAddress)) || {};
+        recipient.address = ownerEntity.recipientAddress;
         const result = {
           createdAt: commitTime.toString(),
           action: 'Milestone Paid Out',
-          actor: actionTaker && actionTaker.name ? actionTaker.name : actionTakerAddress,
-          actionOnBehalfOf: title,
-          recipientName: recipient.name || recipientAddress,
+          actor:
+            actionTakerAddress === ownerEntity.ownerAddress
+              ? 'Milestone Proposer'
+              : 'Milestone Recipient',
+          actionOnBehalfOf: ownerEntity.title,
+          recipientName: recipient.name,
           recipientType: 'Givether',
           recipient: getEntityLink(recipient, AdminTypes.GIVER),
           amount: '-',
           currency: '-',
           actionTakerAddress,
-          actionRecipientAddress: pluginAddress,
+          actionRecipientAddress: ownerEntity.pluginAddress,
           etherscanLink: getEtherscanLink(transactionHash),
         };
 
         insertCampaignBalanceItems(result);
-        insertMilestoneBalanceItems(_id, result);
+        insertMilestoneBalanceItems(ownerEntity._id, result);
 
         // Clear payouts
         payouts = {};
@@ -259,8 +260,8 @@ module.exports = app => {
                 result = {
                   ...result,
                   action: 'Campaign Created',
-                  actor: actionTaker ? actionTaker.name : from,
-                  actionOnBehalfOf: campaign.title,
+                  actor: actionTaker ? actionTaker.name : undefined,
+                  actionOnBehalfOf: `"${campaign.title}" campaign`,
                   recipientName: campaign.title,
                   recipientType: 'Campaign',
                   recipient: getEntityLink(campaign, AdminTypes.CAMPAIGN),
@@ -338,29 +339,27 @@ module.exports = app => {
                 const milestone = milestoneMap.get(projectId);
                 if (milestone) {
                   const { from } = await getTransaction(app, transactionHash);
-                  const actionTaker = await getUser(from);
+                  let actor;
+                  const { ownerAddress, reviewerAddress, recipientAddress } = milestone;
+                  if (ownerAddress === from) {
+                    actor = 'Proposer';
+                  } else if (reviewerAddress === from) {
+                    actor = 'Reviewer';
+                  } else if (recipientAddress === from) {
+                    actor = 'Recipient';
+                  } else if (campaign.ownerAddress === from) {
+                    actor = 'Campaign Owner';
+                  } else if (campaign.reviewerAddress === from) {
+                    actor = 'Campaign Reviewer';
+                  } else {
+                    actor = 'Unknown';
+                  }
 
-                  // let actionOnBehalfOf;
-                  // const { ownerAddress, reviewerAddress, recipientAddress } = milestone;
-                  // if (ownerAddress === from) {
-                  //   actionOnBehalfOf = 'Proposer';
-                  // } else if (reviewerAddress === from) {
-                  //   actionOnBehalfOf = 'Reviewer';
-                  // } else if (recipientAddress === from) {
-                  //   actionOnBehalfOf = 'Recipient';
-                  // } else if (campaign.ownerAddress === from) {
-                  //   actionOnBehalfOf = 'Campaign Owner';
-                  // } else if (campaign.reviewerAddress === from) {
-                  //   actionOnBehalfOf = 'Campaign Reviewer';
-                  // } else {
-                  //   actionOnBehalfOf = 'Unknown';
-                  // }
-                  //
                   result = {
                     ...result,
                     action: 'Milestone Canceled',
-                    actor: actionTaker && actionTaker.name ? actionTaker.name : from,
-                    actionOnBehalfOf: milestone.title,
+                    actor,
+                    actionOnBehalfOf: 'Milestone',
                     recipientName: campaign.title,
                     recipientType: 'Campaign',
                     recipient: getEntityLink(campaign, AdminTypes.CAMPAIGN),
@@ -385,7 +384,7 @@ module.exports = app => {
               // Money is moved to pledge owned by campaign or one of its milestones
               const toPledgeIds = pledgeIds.has(to);
               // Money is exited from a pledge owned by canceled donation
-              // const fromCanceledPledge = canceledPledgeIds.has(from);
+              const fromCanceledPledge = canceledPledgeIds.has(from);
 
               const [donation] = await donationService.find({
                 query: { txHash: transactionHash, pledgeId: to, amount },
@@ -416,7 +415,6 @@ module.exports = app => {
                 delegateEntity,
                 status,
                 commitTime = createdAt,
-                isReturn,
               } = donation;
 
               let action;
@@ -424,7 +422,7 @@ module.exports = app => {
               let recipientName;
               let recipientType;
               let recipient;
-              let resolvedActionTakerAddress;
+              let realActionTakerAddress;
               let actionOnBehalfOf;
               let actionRecipientAddress;
               let insertMilestoneId;
@@ -433,7 +431,7 @@ module.exports = app => {
 
               // Money movement from pledge with higher id number to pledge with lower id number
               // is a sign of money revert
-              if (isReturn) {
+              if (fromCanceledPledge && Number(to) < Number(from)) {
                 switch (ownerType) {
                   case AdminTypes.GIVER:
                     if (delegateType === AdminTypes.DAC) {
@@ -460,16 +458,16 @@ module.exports = app => {
                     break;
 
                   default:
-                    action = 'Donation Reverted';
+                    action = 'Return';
                 }
 
                 if (actionTakerAddress) {
-                  resolvedActionTakerAddress = actionTakerAddress;
+                  realActionTakerAddress = actionTakerAddress;
                 } else {
                   const tx = await getTransaction(app, transactionHash);
-                  resolvedActionTakerAddress = tx.from;
+                  realActionTakerAddress = tx.from;
                 }
-                const actionTaker = await getUser(resolvedActionTakerAddress);
+                const actionTaker = await getUser(realActionTakerAddress);
                 actor = actionTaker && actionTaker.name;
                 const [fromDonation] = await donationService.find({
                   query: { pledgeId: from },
@@ -504,49 +502,27 @@ module.exports = app => {
                 // Update campaign and milestones balance
                 updateBalance({ donation, isDelegate, parentId: parentOwnerTypeId });
 
-                if (actionTakerAddress) {
-                  resolvedActionTakerAddress = actionTakerAddress;
-                } else {
-                  const tx = await getTransaction(app, transactionHash);
-                  resolvedActionTakerAddress = tx.from;
-                }
-
-                let actionTaker;
-                let giver;
-
-                if (resolvedActionTakerAddress === giverAddress) {
-                  actionTaker = await getUser(resolvedActionTakerAddress);
-                  giver = actionTaker;
-                } else {
-                  [giver, actionTaker] = await Promise.all([
-                    getUser(resolvedActionTakerAddress),
-                    getUser(giverAddress),
-                  ]);
-                }
-
-                if (!actionTaker || !actionTaker.name)
-                  actionTaker = { name: resolvedActionTakerAddress };
-
-                if (!giver || !giver.name) giver = { name: giverAddress };
-
                 // Action and Actor
                 if (isDelegate) {
                   const capitalizedParentOwnerType = capitalizeAdminType(parentOwnerType);
                   action = `${capitalizedParentOwnerType} Delegated to ${capitalizeOwnerType}`;
+                  actor = `${capitalizedParentOwnerType} Manager`;
                 } else if (ownerType === AdminTypes.CAMPAIGN) {
                   action = 'Campaign Received Donation';
+                  actor = 'Donor';
                 } else {
                   action = 'Direct Donation to Milestone';
+                  actor = 'Giver';
                 }
-                actor = actionTaker.name;
 
-                resolvedActionTakerAddress = isDelegate ? actionTakerAddress : giverAddress;
+                realActionTakerAddress = isDelegate ? actionTakerAddress : giverAddress;
                 if (status === DonationStatus.CANCELED) {
                   action += ' - Canceled Later';
                 }
+                const actionTaker = await getUser(realActionTakerAddress);
 
                 if (!isDelegate) {
-                  actionOnBehalfOf = giver.name;
+                  actionOnBehalfOf = actionTaker.name;
                 } else {
                   let service;
                   if (parentOwnerType === AdminTypes.DAC) {
@@ -587,7 +563,7 @@ module.exports = app => {
                 amount: Web3.utils.fromWei(amount).toString(),
                 currency: token.name,
                 createdAt: commitTime.toString(),
-                actionTakerAddress: resolvedActionTakerAddress,
+                actionTakerAddress: realActionTakerAddress,
                 actionRecipientAddress,
                 etherscanLink: getEtherscanLink(transactionHash),
                 homeEtherscanLink: getHomeEtherscanLink(homeTxHash),

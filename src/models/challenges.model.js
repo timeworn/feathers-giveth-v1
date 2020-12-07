@@ -15,5 +15,6 @@ module.exports = function Challenge(app) {
       timestamps: true,
     },
   );
+
   return mongooseClient.model('challenge', challenge);
 };
