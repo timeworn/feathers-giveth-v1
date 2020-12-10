@@ -30,8 +30,8 @@ function getConversionRatesTestCases() {
 }
 
 it('should conversionRates service registration be ok', () => {
-  const conversationRateService = app.service('conversionRates');
-  assert.ok(conversationRateService, 'Registered the service');
+  const userService = app.service('conversionRates');
+  assert.ok(userService, 'Registered the service');
 });
 
 describe('test get /conversionRates', getConversionRatesTestCases);

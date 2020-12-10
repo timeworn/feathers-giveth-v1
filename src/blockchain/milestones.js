@@ -168,7 +168,7 @@ const milestonesFactory = app => {
       if (data.length === 1) {
         const m = data[0];
         const { from } = await getTransaction(app, txHash);
-        return milestones.patch(
+        await milestones.patch(
           m._id,
           {
             recipientAddress: recipient,
@@ -181,10 +181,8 @@ const milestonesFactory = app => {
           },
         );
       }
-      return null;
     } catch (e) {
       logger.error(e);
-      return null;
     }
   }
 
@@ -202,7 +200,7 @@ const milestonesFactory = app => {
         const m = data[0];
         const { from } = await getTransaction(app, txHash);
 
-        return milestones.patch(
+        await milestones.patch(
           m._id,
           {
             reviewerAddress: reviewer,
@@ -214,10 +212,8 @@ const milestonesFactory = app => {
           },
         );
       }
-      return null;
     } catch (e) {
       logger.error(e);
-      return null;
     }
   }
 
@@ -253,7 +249,7 @@ const milestonesFactory = app => {
         );
       }
 
-      return updateMilestoneStatus(
+      await updateMilestoneStatus(
         event.returnValues.idProject,
         MilestoneStatus.IN_PROGRESS,
         event.transactionHash,
@@ -272,7 +268,7 @@ const milestonesFactory = app => {
         );
       }
 
-      return updateMilestoneStatus(
+      await updateMilestoneStatus(
         event.returnValues.idProject,
         MilestoneStatus.COMPLETED,
         event.transactionHash,
@@ -291,7 +287,7 @@ const milestonesFactory = app => {
         );
       }
 
-      return updateMilestoneReviewer(
+      await updateMilestoneReviewer(
         event.returnValues.idProject,
         event.returnValues.reviewer,
         event.transactionHash,
@@ -310,7 +306,7 @@ const milestonesFactory = app => {
         );
       }
 
-      return updateMilestoneRecipient(
+      await updateMilestoneRecipient(
         event.returnValues.idProject,
         event.returnValues.recipient,
         event.transactionHash,
@@ -337,7 +333,7 @@ const milestonesFactory = app => {
             m => m._id,
           )}`,
         );
-        return null;
+        return;
       }
       const matchedMilestone = matchingMilestones[0];
 
@@ -351,7 +347,7 @@ const milestonesFactory = app => {
       });
 
       // if there are still committed donations, don't mark the as paid or paying
-      if (donations.length > 0) return null;
+      if (donations.length > 0) return;
 
       await createPaymentConversationAndSendEmail({
         app,
@@ -361,8 +357,8 @@ const milestonesFactory = app => {
 
       // if (!milestone.maxAmount || !milestone.fullyFunded) return;
       // never set uncapped or non-fullyFunded milestones as PAID
-      if (!matchedMilestone.maxAmount || !matchedMilestone.fullyFunded) return null;
-      return updateMilestoneStatus(projectId, MilestoneStatus.PAID, event.transactionHash);
+      if (!matchedMilestone.maxAmount || !matchedMilestone.fullyFunded) return;
+      await updateMilestoneStatus(projectId, MilestoneStatus.PAID, event.transactionHash);
     },
   };
 };
