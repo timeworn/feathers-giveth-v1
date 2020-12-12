@@ -203,18 +203,38 @@ const getHourlyRateCoingecko = async (
 
   return rate;
 };
+
+const findNewestData = tokenCompareHistoryResponse => {
+  return (
+    tokenCompareHistoryResponse &&
+    tokenCompareHistoryResponse.Data &&
+    // when there is no result and token is invalid, the resp.Data is {} not an array
+    Array.isArray(tokenCompareHistoryResponse.Data) &&
+    tokenCompareHistoryResponse.Data.length > 0 &&
+    tokenCompareHistoryResponse.Data.sort((a, b) => {
+      // every data has a time lower than timestampMS so every object with
+      // bigger time is nearest to timestampMS
+      return b.time - a.time;
+    })[0]
+  );
+};
 const getHourlyRateCryptocompare = async (timestamp, fromToken, toToken) => {
   const timestampMS = Math.round(timestamp / 1000);
 
   const resp = JSON.parse(
     await rp(
-      `https://min-api.cryptocompare.com/data/histohour?fsym=${fromToken.symbol}&tsym=${toToken.symbol}&toTs=${timestampMS}&limit=1`,
+      `https://min-api.cryptocompare.com/data/histohour?fsym=${fromToken.rateEqSymbol ||
+        fromToken.symbol}&tsym=${toToken.rateEqSymbol ||
+        toToken.symbol}&toTs=${timestampMS}&limit=1`,
     ),
   );
 
-  const tsData = resp && resp.Data && resp.Data.find(d => d.time === timestampMS);
+  const tsData = findNewestData(resp);
 
-  if (!tsData) throw new Error(`Failed to retrieve cryptocompare rate for ts: ${timestampMS}`);
+  if (!tsData) {
+    logger.error('getHourlyRateCryptocompare error', { timestampMS, resp, fromToken, toToken });
+    throw new Error(`Failed to retrieve cryptocompare rate for ts: ${timestampMS}`);
+  }
   const decimals = toToken && toToken.decimals ? toToken.decimals : 2;
   return ((tsData.high + tsData.low) / 2).toFixed(decimals);
 };
@@ -373,12 +393,14 @@ const getHourlyCryptoConversion = async (app, ts, fromSymbol = 'ETH', toSymbol =
   }
 
   let rate = 0;
-  if (fromSymbol === 'PAN') {
+  if ((fromToken.rateEqSymbol || fromToken.symbol) === (toToken.rateEqSymbol || toToken.symbol)) {
+    // getHourlyRateCryptocompare() return string so I set "1" instead of number 1
+    rate = '1';
+  } else if (fromSymbol === 'PAN') {
     rate = await getHourlyRateCoingecko(fromSymbol, requestTs, fromToken.coingeckoId, toSymbol);
   } else {
     rate = await getHourlyRateCryptocompare(requestTs, fromToken, toToken);
   }
-
   try {
     const ratesToSave = { ...dbRates.rates };
     ratesToSave[toSymbol] = rate;
@@ -423,6 +445,10 @@ const queryConversionRates = app => {
 };
 
 module.exports = {
+  // its just exported to can write test for it
+  getHourlyRateCryptocompare,
+  findNewestData,
+
   getConversionRates,
   queryConversionRates,
   getHourlyUSDCryptoConversion,
