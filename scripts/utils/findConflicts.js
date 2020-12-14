@@ -15,7 +15,6 @@ const { LiquidPledging, LiquidPledgingState } = require('giveth-liquidpledging')
 const EventEmitter = require('events');
 const toFn = require('../../src/utils/to');
 const DonationUsdValueUtility = require('./DonationUsdValueUtility');
-const { getTokenByAddress } = require('../../src/utils/tokenHelper')
 
 const { argv } = yargs
   .option('dry-run', {
@@ -338,7 +337,7 @@ const fetchDonationsInfo = async () => {
         ownerTypeId,
         intendedProjectId,
         giverAddress,
-        tokenAddress,
+        token,
         isReturn,
         usdValue,
         createdAt,
@@ -364,7 +363,7 @@ const fetchDonationsInfo = async () => {
           intendedProjectId,
           giverAddress,
           pledgeId: pledgeId.toString(),
-          token: getTokenByAddress(tokenAddress),
+          token,
           isReturn,
           usdValue,
           createdAt,
