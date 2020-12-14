@@ -40,7 +40,6 @@ const assertNotThrowsAsync = async fn => {
 };
 
 const testAddress = '0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1';
-const campaignAddress = '5fd3412e3e403d0c0f9e4463';
 
 function getJwt(address = testAddress) {
   const authentication = config.get('authentication');
@@ -103,13 +102,12 @@ function generateRandomTransactionHash() {
 const SAMPLE_DATA = {
   // the user in seed data has these values
   USER_ADDRESS: testAddress,
-  USER_GIVER_ID: 1,
+  USER_GIVER_ID: 178,
 
   SECOND_USER_ADDRESS: '0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0',
-  MILESTONE_ID: '5fd3424c3e403d0c0f9e4487',
-  CAMPAIGN_ID: campaignAddress,
+  MILESTONE_ID: '5faa26b7642872709976045b',
   FAKE_USER_ADDRESS: generateRandomEtheriumAddress(),
-  DAC_ID: '5fd339eaa5ffa2a6198ecd70',
+  DAC_ID: '5fa9788b4c63425d06b8a272',
   MILESTONE_STATUSES: {
     PROPOSED: 'Proposed',
     REJECTED: 'Rejected',
@@ -152,7 +150,7 @@ const SAMPLE_DATA = {
     date: '2020-11-10T00:00:00.000Z',
     recipientAddress: '0x0000000000000000000000000000000000000000',
     pluginAddress: '0x0000000000000000000000000000000000000001',
-    campaignId: campaignAddress,
+    campaignId: '5fa97a9c4c63425d06b8a245',
     status: 'InProgress',
     items: [],
     token: {
