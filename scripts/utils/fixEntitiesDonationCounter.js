@@ -8,27 +8,11 @@ require('mongoose-long')(mongoose);
 require('../../src/models/mongoose-bn')(mongoose);
 const _groupBy = require('lodash.groupby');
 const { toBN } = require('web3-utils');
-const config = require('config');
 
-let tokensByAddress;
+const configFileName = 'beta'; // default or beta
 
-function getTokenByAddress(address) {
-  const ANY_TOKEN = {
-    name: 'ANY_TOKEN',
-    address: '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF',
-    foreignAddress: '0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF',
-    symbol: 'ANY_TOKEN',
-    decimals: 18,
-  };
-  if (!tokensByAddress) {
-    tokensByAddress = {};
-    config.get('tokenWhitelist').forEach(token => {
-      tokensByAddress[token.address] = token;
-    });
-  }
-  tokensByAddress[ANY_TOKEN.address] = ANY_TOKEN;
-  return tokensByAddress[address];
-}
+// eslint-disable-next-line import/no-dynamic-require
+const config = require(`../../config/${configFileName}.json`);
 
 const appFactory = () => {
   const data = {};
@@ -156,13 +140,13 @@ const updateEntity = async (model, type) => {
 
         // find the first donation in the group that has a token object
         // b/c there are other donation objects coming through as well
-        const { tokenAddress } = tokenDonations.find(d => d.tokenAddress);
-        const token = getTokenByAddress(tokenAddress);
+        const tokenDonation = tokenDonations.find(d => typeof d.token === 'object');
+
         return {
-          name: token.name,
-          address: token.address,
-          foreignAddress: token.foreignAddress,
-          decimals: token.decimals,
+          name: tokenDonation.token.name,
+          address: tokenDonation.token.address,
+          foreignAddress: tokenDonation.token.foreignAddress,
+          decimals: tokenDonation.token.decimals,
           symbol,
           totalDonated,
           currentBalance,
@@ -188,10 +172,10 @@ const updateEntity = async (model, type) => {
         donationCounters.forEach(dc => {
           const oldDC = oldDonationCounters.find(item => item.symbol === dc.symbol);
           if (
-            oldDC &&
-            (oldDC.totalDonated.toString() !== dc.totalDonated.toString() ||
-              oldDC.currentBalance.toString() !== dc.currentBalance.toString() ||
-              oldDC.donationCount !== dc.donationCount)
+            oldDC === undefined ||
+            oldDC.totalDonated.toString() !== dc.totalDonated.toString() ||
+            oldDC.currentBalance.toString() !== dc.currentBalance.toString() ||
+            oldDC.donationCount !== dc.donationCount
           ) {
             message += `${typeName} ${entity._id.toString()} (${
               entity.status
@@ -221,27 +205,24 @@ const updateEntity = async (model, type) => {
         });
       }
 
-      const { tokenAddress, maxAmount } = entity;
-      const token = getTokenByAddress(tokenAddress);
-      const foundDonationCounter = token && donationCounters.find(dc => dc.symbol === token.symbol);
+      const { token, maxAmount } = entity;
       const fullyFunded = !!(
         type === AdminTypes.MILESTONE &&
         donationCounters.length > 0 &&
-        token &&
         token.foreignAddress !== ANY_TOKEN.foreignAddress &&
         maxAmount &&
-        foundDonationCounter &&
         maxAmount
-          .sub(foundDonationCounter.totalDonated)
+          .sub(donationCounters.find(dc => dc.symbol === token.symbol).totalDonated)
           .lt(toBN(10 ** (18 - Number(token.decimals))))
       ); // Difference less than this number is negligible
 
       if (
         (fullyFunded === true || entity.fullyFunded !== undefined) &&
-        entity.fullyFunded !== fullyFunded &&
-        foundDonationCounter
+        entity.fullyFunded !== fullyFunded
       ) {
-        message += `Diff: ${entity.maxAmount.sub(foundDonationCounter.totalDonated)}\n`;
+        message += `Diff: ${entity.maxAmount.sub(
+          donationCounters.find(dc => dc.symbol === entity.token.symbol).totalDonated,
+        )}\n`;
         message += `${typeName} ${entity._id.toString()} (${
           entity.status
         }) fullyFunded status changed from ${entity.fullyFunded} to ${fullyFunded}\n`;
