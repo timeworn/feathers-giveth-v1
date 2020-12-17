@@ -8,28 +8,13 @@ const winston = require('winston');
 const DailyRotateFile = require('winston-daily-rotate-file');
 const yargs = require('yargs');
 const BigNumber = require('bignumber.js');
-const config = require('config');
 const mongoose = require('mongoose');
-const cliProgress = require('cli-progress');
-const _colors = require('colors');
 require('mongoose-long')(mongoose);
 require('../../src/models/mongoose-bn')(mongoose);
 const { LiquidPledging, LiquidPledgingState } = require('giveth-liquidpledging');
 const EventEmitter = require('events');
 const toFn = require('../../src/utils/to');
 const DonationUsdValueUtility = require('./DonationUsdValueUtility');
-
-let tokensByAddress;
-
-function getTokenByAddress(address) {
-  if (!tokensByAddress) {
-    tokensByAddress = {};
-    config.get('tokenWhitelist').forEach(token => {
-      tokensByAddress[token.address] = token;
-    });
-  }
-  return tokensByAddress[address];
-}
 
 const { argv } = yargs
   .option('dry-run', {
@@ -41,6 +26,11 @@ const { argv } = yargs
     describe: 'update network state and events cache',
     type: 'boolean',
     default: false,
+  })
+  .option('config', {
+    describe: 'basename of a json config file name. e.g. default, production, develop',
+    type: 'string',
+    demand: true,
   })
   .option('cache-dir', {
     describe: 'directory to create cache file inside',
@@ -55,9 +45,14 @@ const { argv } = yargs
     describe: 'produce debugging log',
     type: 'boolean',
   })
+  .demandOption(
+    ['config'],
+    'Please provide config file holds network gateway and DB connection URI',
+  )
   .version(false)
   .help();
 
+const configFileName = argv.config;
 const cacheDir = argv['cache-dir'];
 const logDir = argv['log-dir'];
 const updateState = argv['update-network-cache'];
@@ -96,6 +91,13 @@ const terminateScript = (message = '', code = 0) => {
 
   logger.end();
 };
+
+if (!argv.config) {
+  terminateScript('config file name cannot be empty ');
+}
+
+// eslint-disable-next-line import/no-dynamic-require
+const config = require(`../../config/${configFileName.toString()}.json`);
 
 const { ignoredTransactions } = require('./eventProcessingHelper.json');
 
@@ -197,7 +199,6 @@ const getForeignWeb3 = async () => {
 
 // Gets status of liquidpledging storage
 const fetchBlockchainData = async () => {
-  console.log('fetchBlockchainData ....');
   try {
     if (!fs.existsSync(cacheDir)) {
       fs.mkdirSync(cacheDir);
@@ -205,8 +206,8 @@ const fetchBlockchainData = async () => {
   } catch (e) {
     terminateScript(e.stack);
   }
-  const stateFile = path.join(cacheDir, `./liquidPledgingState_${process.env.NODE_ENV}.json`);
-  const eventsFile = path.join(cacheDir, `./liquidPledgingEvents_${process.env.NODE_ENV}.json`);
+  const stateFile = path.join(cacheDir, `./liquidPledgingState_${configFileName}.json`);
+  const eventsFile = path.join(cacheDir, `./liquidPledgingEvents_${configFileName}.json`);
 
   let state = {};
 
@@ -336,7 +337,7 @@ const fetchDonationsInfo = async () => {
         ownerTypeId,
         intendedProjectId,
         giverAddress,
-        tokenAddress,
+        token,
         isReturn,
         usdValue,
         createdAt,
@@ -362,7 +363,7 @@ const fetchDonationsInfo = async () => {
           intendedProjectId,
           giverAddress,
           pledgeId: pledgeId.toString(),
-          token: getTokenByAddress(tokenAddress),
+          token,
           isReturn,
           usdValue,
           createdAt,
@@ -694,6 +695,7 @@ const handleToDonations = async ({
         terminateScript(`No token found for address ${toPledge.token}`);
         return;
       }
+      expectedToDonation.token = token;
 
       const delegationInfo = {};
       // It's delegated to a DAC
@@ -748,7 +750,6 @@ const handleToDonations = async ({
 
       const model = {
         ...expectedToDonation,
-        tokenAddress: token.address,
         amountRemaining: expectedToDonation.amountRemaining.toFixed(),
         mined: true,
         createdAt: new Date(timestamp * 1000),
@@ -766,7 +767,7 @@ const handleToDonations = async ({
       const _id = donation._id.toString();
       expectedToDonation._id = _id;
       expectedToDonation.savedAmountRemaining = model.amountRemaining;
-      donationMap[_id] = { ...expectedToDonation, token };
+      donationMap[_id] = expectedToDonation;
       logger.info(
         `donation created: ${JSON.stringify(
           {
@@ -1001,75 +1002,54 @@ const fixConflictInDonations = unusedDonationMap => {
   return Promise.all(promises);
 };
 
-const syncEventWithDb = async ({ event, transactionHash, logIndex, returnValues, blockNumber }) => {
-  if (ignoredTransactions.some(it => it.txHash === transactionHash && it.logIndex === logIndex)) {
-    logger.debug('Event ignored.');
-    return;
-  }
-
-  if (event === 'Transfer') {
-    const { from, to, amount } = returnValues;
-    logger.debug(`Transfer from ${from} to ${to} amount ${amount}`);
-
-    // eslint-disable-next-line no-await-in-loop
-    const { usedFromDonations, giverAddress } = await handleFromDonations(
-      from,
-      to,
-      amount,
-      transactionHash,
-      logIndex,
-    );
-
-    // eslint-disable-next-line no-await-in-loop
-    await handleToDonations({
-      from,
-      to,
-      amount,
-      transactionHash,
-      blockNumber,
-      usedFromDonations,
-      giverAddress,
-    });
-  } else if (event === 'CancelProject') {
-    const { idProject } = returnValues;
-    logger.debug(
-      `Cancel project ${idProject}: ${JSON.stringify(admins[Number(idProject)], null, 2)}`,
-    );
-    // eslint-disable-next-line no-await-in-loop
-    await cancelProject(idProject);
-  }
-};
-
 const syncDonationsWithNetwork = async () => {
   // Map from pledge id to list of donations belonged to the pledge and are not used yet!
   await fetchDonationsInfo();
-  console.log('start syncing donations ', events.length);
 
-  // create new progress bar
-  const progressBar = new cliProgress.SingleBar({
-    format: `Syncing donations with events |${_colors.cyan(
-      '{bar}',
-    )}| {percentage}% || {value}/{total} events`,
-    barCompleteChar: '\u2588',
-    barIncompleteChar: '\u2591',
-    hideCursor: true,
-  });
-  progressBar.start(events.length, 0);
-
-  // update values
   // Simulate transactions by events
   for (let i = 0; i < events.length; i += 1) {
-    progressBar.update(i);
     const { event, transactionHash, logIndex, returnValues, blockNumber } = events[i];
     logger.debug(
       `-----\nProcessing event ${i}:\nLog Index: ${logIndex}\nEvent: ${event}\nTransaction hash: ${transactionHash}`,
     );
-    // eslint-disable-next-line no-await-in-loop
-    await syncEventWithDb({ event, transactionHash, logIndex, returnValues, blockNumber });
+
+    if (ignoredTransactions.some(it => it.txHash === transactionHash && it.logIndex === logIndex)) {
+      logger.debug('Event ignored.');
+      continue;
+    }
+
+    if (event === 'Transfer') {
+      const { from, to, amount } = returnValues;
+      logger.debug(`Transfer from ${from} to ${to} amount ${amount}`);
+
+      // eslint-disable-next-line no-await-in-loop
+      const { usedFromDonations, giverAddress } = await handleFromDonations(
+        from,
+        to,
+        amount,
+        transactionHash,
+        logIndex,
+      );
+
+      // eslint-disable-next-line no-await-in-loop
+      await handleToDonations({
+        from,
+        to,
+        amount,
+        transactionHash,
+        blockNumber,
+        usedFromDonations,
+        giverAddress,
+      });
+    } else if (event === 'CancelProject') {
+      const { idProject } = returnValues;
+      logger.debug(
+        `Cancel project ${idProject}: ${JSON.stringify(admins[Number(idProject)], null, 2)}`,
+      );
+      // eslint-disable-next-line no-await-in-loop
+      await cancelProject(idProject);
+    }
   }
-  progressBar.update(events.length);
-  progressBar.stop();
-  console.log('events donations synced end.');
 
   // Find conflicts in donations and pledges!
   Object.keys(chargedDonationListMap).forEach(pledgeId => {
