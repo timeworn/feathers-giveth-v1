@@ -312,5 +312,4 @@ module.exports = {
   getTransaction,
   ANY_TOKEN,
   ZERO_ADDRESS,
-  reconnectOnEnd,
 };
