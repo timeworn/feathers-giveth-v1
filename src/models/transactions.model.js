@@ -4,8 +4,10 @@ function Transaction(app) {
   const transaction = new Schema(
     {
       hash: { type: String, required: true, index: true },
-      from: { type: String, required: true },
-      isHome: { type: Boolean, default: false },
+      from: { type: String },
+      blockNumber: { type: Number },
+      isHome: { type: Boolean },
+      timestamp: { type: Date },
     },
     {
       timestamps: false,
