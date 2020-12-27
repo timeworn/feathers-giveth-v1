@@ -4,7 +4,7 @@ const { assert, expect } = require('chai');
 const { getJwt, SAMPLE_DATA, generateRandomMongoId } = require('../../../test/testUtility');
 const { getFeatherAppInstance } = require('../../app');
 
-let app;
+const app = getFeatherAppInstance();
 const baseUrl = config.get('givethFathersBaseUrl');
 const relativeUrl = '/milestones';
 
@@ -223,15 +223,11 @@ function deleteMilestoneTestCases() {
 }
 
 it('should milestones service registration be ok', () => {
-  const service = app.service('milestones');
-  assert.ok(service, 'Registered the service');
+  const userService = app.service('milestones');
+  assert.ok(userService, 'Registered the service');
 });
 
 describe(`Test GET  ${relativeUrl}`, getMilestoneTestCases);
 describe(`Test POST  ${relativeUrl}`, postMilestoneTestCases);
 describe(`Test PATCH  ${relativeUrl}`, patchMilestoneTestCases);
 describe(`Test DELETE  ${relativeUrl}`, deleteMilestoneTestCases);
-
-before(() => {
-  app = getFeatherAppInstance();
-});
