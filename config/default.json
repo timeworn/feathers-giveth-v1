@@ -123,6 +123,11 @@
     "MXN",
     "THB"
   ],
+  "stableCoins": [
+    "DAI",
+    "SAI",
+    "USDC"
+  ],
   "nativeCurrencyWhitelist": [
     {
       "symbol": "USD",

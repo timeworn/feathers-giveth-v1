@@ -11,10 +11,8 @@ function getTokenBySymbolTestCases() {
     expect(token).to.be.deep.equal(ethToken);
   });
   it('should return undefined for invalid token symbol', () => {
-    const invalidSymbol = 'InvalidTokenSymbol';
-    const token = getTokenBySymbol(invalidSymbol);
-    assert.isOk(token);
-    assert.equal(token.symbol, invalidSymbol);
+    const token = getTokenBySymbol('InvalidTokenSymbol');
+    assert.isNotOk(token);
   });
 }
 
