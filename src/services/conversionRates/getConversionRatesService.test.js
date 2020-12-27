@@ -9,29 +9,16 @@ const { getFeatherAppInstance } = require('../../app');
 const app = getFeatherAppInstance();
 
 function getHourlyCryptoConversionTestCases() {
-  it('DAI to USD', async () => {
+  it('Stable coin to USD', async () => {
     const now = new Date();
     const result = await getHourlyCryptoConversion(app, now.getTime(), 'DAI', 'USD');
     assert.isOk(result);
     assert.equal(result.rate, 1, 'Stable coin rate should equal USD');
   });
 
-  it('XDAI to USD', async () => {
-    const now = new Date();
-    const result = await getHourlyCryptoConversion(app, now.getTime(), 'XDAI', 'USD');
-    assert.isOk(result);
-    assert.equal(result.rate, 1, 'XDAI coin rate should equal USD');
-  });
-
-  it('USD to DAI', async () => {
+  it('USD to Stable coin', async () => {
     const now = new Date();
     const result = await getHourlyCryptoConversion(app, now.getTime(), 'USD', 'DAI');
-    assert.isOk(result);
-    assert.equal(result.rate, 1, 'USD rate should equal Stable coin');
-  });
-  it('XDAI to DAI, both coins have same rateEqSymbol', async () => {
-    const now = new Date();
-    const result = await getHourlyCryptoConversion(app, now.getTime(), 'XDAI', 'DAI');
     assert.isOk(result);
     assert.equal(result.rate, 1, 'USD rate should equal Stable coin');
   });
