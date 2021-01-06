@@ -7,7 +7,7 @@ const logger = require('winston');
 // remove the key from the doc if the value is undefined
 function unsetUndefined(next) {
   const query = this;
-  if (['findOneAndUpdate', 'update'].includes(this.op)) {
+  if (this.op === 'update') {
     Object.keys(this._update).forEach(k => {
       if (query._update[k] === undefined) {
         delete query._update[k];
@@ -27,12 +27,7 @@ module.exports = function mongooseFactory() {
 
   logger.info('Using feathers mongo url', mongoUrl);
 
-  mongoose.connect(mongoUrl, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    useCreateIndex: true,
-    useFindAndModify: false,
-  });
+  mongoose.connect(mongoUrl);
 
   const db = mongoose.connection;
   db.on('error', err => logger.error('Could not connect to Mongo', err));

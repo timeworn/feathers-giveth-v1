@@ -27,12 +27,17 @@ const schema = {
 };
 
 const countCampaigns = (item, service) =>
-  service.Model.countDocuments({
-    dacs: item._id,
-    projectId: {
-      $gt: 0, // 0 is a pending campaign
-    },
-  }).then(count => Object.assign(item, { campaignsCount: count }));
+  service
+    .find({
+      query: {
+        dacs: item._id,
+        projectId: {
+          $gt: 0, // 0 is a pending campaign
+        },
+        $limit: 0,
+      },
+    })
+    .then(count => Object.assign(item, { campaignsCount: count.total }));
 
 // add campaignCount to each DAC object
 const addCampaignCounts = () => context => {

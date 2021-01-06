@@ -2,7 +2,6 @@
 const createService = require('feathers-mongoose');
 const { createModel } = require('../../models/pledgeAdmins.model');
 const hooks = require('./pledgeAdmins.hooks');
-const { defaultFeatherMongooseOptions } = require('../serviceCommons');
 
 module.exports = function pledgeAdmins() {
   const app = this;
@@ -14,7 +13,6 @@ module.exports = function pledgeAdmins() {
     id: 'id',
     Model,
     paginate,
-    ...defaultFeatherMongooseOptions,
   };
 
   // Initialize our service with any options it requires
