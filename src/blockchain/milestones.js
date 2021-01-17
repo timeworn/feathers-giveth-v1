@@ -67,7 +67,7 @@ const createPaymentConversationAndSendEmail = async ({ app, milestone, txHash })
         messageContext: 'payment',
         txHash,
         payments,
-        recipientAddress: recipient.address,
+        recipientAddress: (recipient && recipient.address) || owner.address,
       },
       { performedByAddress: donations[0].actionTakerAddress },
     );
@@ -81,10 +81,12 @@ const createPaymentConversationAndSendEmail = async ({ app, milestone, txHash })
         campaignId,
         conversation,
       });
+    }else{
+      logger.info(
+        `Currently we dont send email for milestones who doesnt have recipient, milestoneId: ${milestoneId}`,
+      );
     }
-    logger.info(
-      `Currently we dont send email for milestones who doesnt have recipient, milestoneId: ${milestoneId}`,
-    );
+
   } catch (e) {
     logger.error('createConversation and send collectedEmail error', e);
   }
