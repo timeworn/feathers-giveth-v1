@@ -6,24 +6,25 @@ const sanitizeAddress = require('../../hooks/sanitizeAddress');
 const sanitizeHtml = require('../../hooks/sanitizeHtml');
 const resolveFiles = require('../../hooks/resolveFiles');
 const onlyInternal = require('../../hooks/onlyInternal');
+const { isRequestInternal } = require('../../utils/feathersUtils');
 
 /**
-  API for creating conversations
-  The following params are accepted when creating a message for a conversation
+ API for creating conversations
+ The following params are accepted when creating a message for a conversation
 
-  @params:
-    milestoneId:        (string) the id of the milestone that this conversation belongs to
-    messageContext:     (string) context of the message, see MESSAGE_CONTEXT below
-    message:            (string) the actual message
-    replyToId:          (string) id of the message that this is a reply to
+ @params:
+ milestoneId:        (string) the id of the milestone that this conversation belongs to
+ messageContext:     (string) context of the message, see MESSAGE_CONTEXT below
+ message:            (string) the actual message
+ replyToId:          (string) id of the message that this is a reply to
 
-  @param ownerAddress (string) is automatically set based on the current logged in user
-* */
+ @param ownerAddress (string) is automatically set based on the current logged in user
+ * */
 
 /**
-  Available conversation types. This roughly follows the milestone status
-  replyTo is for threaded messages
-* */
+ Available conversation types. This roughly follows the milestone status
+ replyTo is for threaded messages
+ * */
 const MESSAGE_CONTEXT = [
   'proposed',
   'rejected',
@@ -36,6 +37,7 @@ const MESSAGE_CONTEXT = [
   'rePropose',
   'archived',
   'payment',
+  'donated',
   'comment',
 ];
 
@@ -82,9 +84,15 @@ const restrictAndSetOwner = () => context => {
           context.data.performedByRole = 'Campaign Reviewer';
           break;
         default:
-          throw new errors.Forbidden(
-            'Only people involved with the milestone can create conversation',
-          );
+          if (isRequestInternal(context)) {
+            //  It's created when someone donated, so maybe he/she is not involved with milestone
+            context.data.performedByRole = ' ';
+          }else{
+            throw new errors.Forbidden(
+              'Only people involved with the milestone can create conversation',
+            );
+          }
+
       }
       return context;
     })
@@ -94,8 +102,8 @@ const restrictAndSetOwner = () => context => {
 };
 
 /**
-  message must be in context of the conversation
-  for example, it must include milestone state 'proposed' if the message is about a proposal
+ message must be in context of the conversation
+ for example, it must include milestone state 'proposed' if the message is about a proposal
  * */
 const checkMessageContext = () => context => {
   const { messageContext, replyToId } = context.data;
@@ -118,7 +126,7 @@ const checkMessageContext = () => context => {
 };
 
 /**
-  include user object when querying message
+ include user object when querying message
  * */
 const schema = {
   include: [
@@ -138,7 +146,7 @@ const schema = {
 };
 
 /**
-  The bas-ass stuff happens here...
+ The bas-ass stuff happens here...
  * */
 module.exports = {
   before: {

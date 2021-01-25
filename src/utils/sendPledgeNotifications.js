@@ -1,7 +1,6 @@
 const { DonationStatus } = require('../models/donations.model');
 const { AdminTypes } = require('../models/pledgeAdmins.model');
 const Notifications = require('./dappMailer');
-
 /**
  *
  * Conditionally sends a notification for a pledge
@@ -91,9 +90,27 @@ const sendNotification = async (app, pledge) => {
   } else {
     // if this is a milestone then no action is required
 
+    // pledge = donation, pledgeAdmin= milestone,  performedByAddress:pledge.actionTakerAddress
+    const { owner, recipient } = pledgeAdmin;
+    await app.service('conversations').create(
+      {
+        milestoneId: pledgeAdmin._id,
+        messageContext: 'donated',
+        txHash: pledge.txHash,
+        payments: [
+          {
+            symbol: pledge.token.symbol,
+            amount: pledge.amount,
+            decimals: pledge.token.decimals,
+          },
+        ],
+        recipientAddress: (recipient && recipient.address) || pledge.giverAddress,
+      },
+      { performedByAddress: pledge.actionTakerAddress },
+    );
     Notifications.donationReceived(app, {
-      recipient: pledgeAdmin.owner.email,
-      user: pledgeAdmin.owner.name,
+      recipient: owner.email,
+      user: owner.name,
       txHash: pledge.txHash,
       donationType: pledge.ownerType,
       donatedToTitle: pledgeAdmin.title,
