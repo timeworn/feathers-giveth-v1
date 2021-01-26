@@ -1,9 +1,9 @@
 const errors = require('@feathersjs/errors');
-const { isRequestInternal } = require('../utils/feathersUtils');
 
 module.exports = () => context => {
-  if (!isRequestInternal(context)) {
+  if (context.params.provider !== undefined) {
     throw new errors.Forbidden();
   }
+
   return context;
 };
