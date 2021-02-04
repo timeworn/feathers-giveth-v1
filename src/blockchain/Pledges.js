@@ -11,7 +11,7 @@ const { MilestoneStatus, MilestoneTypes } = require('../models/milestones.model'
 const { AdminTypes } = require('../models/pledgeAdmins.model');
 const toWrapper = require('../utils/to');
 const reprocess = require('../utils/reprocess');
-const { handleDonationConversationAndEmail } = require('../utils/conversationAndEmailHandler');
+const notify = require('../utils/sendPledgeNotifications');
 
 function isOlderThenAMin(ts) {
   return Date.now() - ts > 1000 * 60;
@@ -469,7 +469,7 @@ const pledges = (app, liquidPledging) => {
       transferInfo.initialTransfer,
       isOlderThenAMin(transferInfo.ts),
     );
-    handleDonationConversationAndEmail(app, mutation);
+    notify(app, mutation);
     return r;
   }
 

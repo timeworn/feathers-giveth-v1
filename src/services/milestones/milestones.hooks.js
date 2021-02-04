@@ -16,8 +16,9 @@ const addConfirmations = require('../../hooks/addConfirmations');
 const { MilestoneStatus } = require('../../models/milestones.model');
 const getApprovedKeys = require('./getApprovedKeys');
 const checkConversionRates = require('./checkConversionRates');
-const { handleMilestoneConversationAndEmail } = require('../../utils/conversationAndEmailHandler');
+const sendNotification = require('./sendNotification');
 const checkMilestoneDates = require('./checkMilestoneDates');
+const checkMilestoneName = require('./checkMilestoneName');
 const { getBlockTimestamp, ZERO_ADDRESS } = require('../../blockchain/lib/web3Helpers');
 const { getTokenByAddress } = require('../../utils/tokenHelper');
 
@@ -330,6 +331,7 @@ module.exports = {
     create: [
       checkConversionRates(),
       checkMilestoneDates(),
+      checkMilestoneName(),
       setAddress('ownerAddress'),
       ...address,
       isProjectAllowed(),
@@ -362,17 +364,9 @@ module.exports = {
     all: [commons.fastJoin(milestoneResolvers)],
     find: [addConfirmations(), resolveFiles(['image', 'items'])],
     get: [addConfirmations(), resolveFiles(['image', 'items'])],
-    create: [
-      handleMilestoneConversationAndEmail(),
-      resolveFiles(['image', 'items']),
-      updateCampaign(),
-    ],
+    create: [sendNotification(), resolveFiles(['image', 'items']), updateCampaign()],
     update: [resolveFiles('image'), updateCampaign()],
-    patch: [
-      handleMilestoneConversationAndEmail(),
-      resolveFiles(['image', 'items']),
-      updateCampaign(),
-    ],
+    patch: [sendNotification(), resolveFiles(['image', 'items']), updateCampaign()],
     remove: [],
   },
 
