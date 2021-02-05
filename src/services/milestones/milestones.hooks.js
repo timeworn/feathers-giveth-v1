@@ -2,6 +2,7 @@ const commons = require('feathers-hooks-common');
 const BatchLoader = require('@feathers-plus/batch-loader');
 const errors = require('@feathersjs/errors');
 const logger = require('winston');
+const { restrictToOwner } = require('feathers-authentication-hooks');
 
 const { getResultsByKey, getUniqueKeys } = BatchLoader;
 
@@ -16,7 +17,7 @@ const addConfirmations = require('../../hooks/addConfirmations');
 const { MilestoneStatus } = require('../../models/milestones.model');
 const getApprovedKeys = require('./getApprovedKeys');
 const checkConversionRates = require('./checkConversionRates');
-const { handleMilestoneConversationAndEmail } = require('../../utils/conversationAndEmailHandler');
+const sendNotification = require('./sendNotification');
 const checkMilestoneDates = require('./checkMilestoneDates');
 const { getBlockTimestamp, ZERO_ADDRESS } = require('../../blockchain/lib/web3Helpers');
 const { getTokenByAddress } = require('../../utils/tokenHelper');
@@ -355,24 +356,22 @@ module.exports = {
       performedBy(),
       convertTokenToTokenAddress(),
     ],
-    remove: [canDelete()],
+    remove: [
+      restrictToOwner({
+        idField: 'address',
+        ownerField: 'ownerAddress',
+      }),
+      canDelete(),
+    ],
   },
 
   after: {
     all: [commons.fastJoin(milestoneResolvers)],
     find: [addConfirmations(), resolveFiles(['image', 'items'])],
     get: [addConfirmations(), resolveFiles(['image', 'items'])],
-    create: [
-      handleMilestoneConversationAndEmail(),
-      resolveFiles(['image', 'items']),
-      updateCampaign(),
-    ],
+    create: [sendNotification(), resolveFiles(['image', 'items']), updateCampaign()],
     update: [resolveFiles('image'), updateCampaign()],
-    patch: [
-      handleMilestoneConversationAndEmail(),
-      resolveFiles(['image', 'items']),
-      updateCampaign(),
-    ],
+    patch: [sendNotification(), resolveFiles(['image', 'items']), updateCampaign()],
     remove: [],
   },
 
