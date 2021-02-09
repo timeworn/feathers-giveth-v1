@@ -60,7 +60,7 @@ function reviewRequestedTestCases() {
     ];
     /* eslint-disable no-restricted-syntax */
     for (const status of validStatuses) {
-      it(`should update with status ${status}`, async () => {
+      it(`should update with status ${status}`, async function() {
         const upsertedMilestone = await updateMileStoneByRequestReviewEventData(status);
         assert.equal(upsertedMilestone.status, SAMPLE_DATA.MILESTONE_STATUSES.NEEDS_REVIEW);
         assert.equal(upsertedMilestone.mined, true);
@@ -135,7 +135,7 @@ function rejectTestCases() {
     ];
     /* eslint-disable no-restricted-syntax */
     for (const status of validStatuses) {
-      it(`should update with status ${status}`, async () => {
+      it(`should update with status ${status}`, async function() {
         const upsertedMilestone = await updateMileStoneByRejectEventData(status);
         assert.equal(upsertedMilestone.status, SAMPLE_DATA.MILESTONE_STATUSES.IN_PROGRESS);
         assert.equal(upsertedMilestone.mined, true);
@@ -256,7 +256,7 @@ function reviewerChangedTestCases() {
 
   describe('should reviewerChanged()  update milestone successfully by eventData', async () => {
     for (const status of Object.values(SAMPLE_DATA.MILESTONE_STATUSES)) {
-      it(`should update milestone with status: ${status} `, async () => {
+      it(`should update milestone with status: ${status} `, async function() {
         const reviewerAddress = generateRandomEtheriumAddress();
         const upsertedMilestone = await updateMileStoneByReviewerChangedEventData(
           status,
@@ -310,7 +310,7 @@ function recipientChangedTestCases() {
   describe('should update milestone successfully by eventData', async () => {
     /* eslint-disable no-restricted-syntax */
     for (const status of Object.values(SAMPLE_DATA.MILESTONE_STATUSES)) {
-      it(`should recipientChanged update milestone with status: ${status} `, async () => {
+      it(`should recipientChanged update milestone with status: ${status} `, async function() {
         const recipient = generateRandomEtheriumAddress();
         const upsertedMilestone = await updateMileStoneByRecipientChangedEventData(
           status,
