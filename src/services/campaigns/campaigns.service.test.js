@@ -32,15 +32,15 @@ function getCampaignTestCases() {
 }
 
 function postCampaignTestCases() {
-  it('should create campaign successfully', async () => {
+  it('should create campaign successfully', async function() {
     const response = await request(baseUrl)
       .post(relativeUrl)
       .send(SAMPLE_DATA.CREATE_CAMPAIGN_DATA)
-      .set({ Authorization: getJwt(SAMPLE_DATA.CREATE_CAMPAIGN_DATA.ownerAddress) });
+      .set({ Authorization: getJwt() });
     assert.equal(response.statusCode, 201);
-    assert.equal(response.body.ownerAddress, SAMPLE_DATA.CREATE_CAMPAIGN_DATA.ownerAddress);
+    assert.equal(response.body.ownerAddress, SAMPLE_DATA.USER_ADDRESS);
   });
-  it('should get unAuthorized error', async () => {
+  it('should get unAuthorized error', async function() {
     const response = await request(baseUrl)
       .post(relativeUrl)
       .send(SAMPLE_DATA.CREATE_CAMPAIGN_DATA);
@@ -62,7 +62,7 @@ function patchCampaignTestCases() {
 
   it('should update campaign successfully, reviewer can cancel the campaign', async function() {
     const description = 'Description updated by test';
-    const reviewerAddress = SAMPLE_DATA.IN_REVIEWER_WHITELIST_USER_ADDRESS;
+    const reviewerAddress = SAMPLE_DATA.SECOND_USER_ADDRESS;
     const campaign = await createCampaign({
       ...SAMPLE_DATA.CREATE_CAMPAIGN_DATA,
       reviewerAddress,
@@ -77,7 +77,7 @@ function patchCampaignTestCases() {
 
   it('should update campaign successfully, reviewer can cancel the campaign and just status and mined should be updated', async function() {
     const description = 'Description updated by test';
-    const reviewerAddress = SAMPLE_DATA.IN_REVIEWER_WHITELIST_USER_ADDRESS;
+    const reviewerAddress = SAMPLE_DATA.SECOND_USER_ADDRESS;
     const campaign = await createCampaign({
       ...SAMPLE_DATA.CREATE_CAMPAIGN_DATA,
       reviewerAddress,
@@ -97,7 +97,7 @@ function patchCampaignTestCases() {
 
   it('should not update campaign successfully, reviewer just can change status to Canceled', async function() {
     const description = 'Description updated by test';
-    const reviewerAddress = SAMPLE_DATA.IN_REVIEWER_WHITELIST_USER_ADDRESS;
+    const reviewerAddress = SAMPLE_DATA.SECOND_USER_ADDRESS;
     const campaign = await createCampaign({
       ...SAMPLE_DATA.CREATE_CAMPAIGN_DATA,
       reviewerAddress,
@@ -116,7 +116,7 @@ function patchCampaignTestCases() {
 
   it('should not update campaign successfully, reviewer need to send mined:false in data', async function() {
     const description = 'Description updated by test';
-    const reviewerAddress = SAMPLE_DATA.IN_REVIEWER_WHITELIST_USER_ADDRESS;
+    const reviewerAddress = SAMPLE_DATA.SECOND_USER_ADDRESS;
     const campaign = await createCampaign({
       ...SAMPLE_DATA.CREATE_CAMPAIGN_DATA,
       reviewerAddress,

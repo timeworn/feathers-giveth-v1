@@ -2,7 +2,6 @@ const commons = require('feathers-hooks-common');
 const BatchLoader = require('@feathers-plus/batch-loader');
 const errors = require('@feathersjs/errors');
 const logger = require('winston');
-const { restrictToOwner } = require('feathers-authentication-hooks');
 
 const { getResultsByKey, getUniqueKeys } = BatchLoader;
 
@@ -356,13 +355,7 @@ module.exports = {
       performedBy(),
       convertTokenToTokenAddress(),
     ],
-    remove: [
-      restrictToOwner({
-        idField: 'address',
-        ownerField: 'ownerAddress',
-      }),
-      canDelete(),
-    ],
+    remove: [canDelete()],
   },
 
   after: {

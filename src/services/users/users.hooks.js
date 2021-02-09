@@ -1,14 +1,12 @@
 const commons = require('feathers-hooks-common');
+const { restrictToOwner } = require('feathers-authentication-hooks');
 const { toChecksumAddress } = require('web3-utils');
-const errors = require('@feathersjs/errors');
 
 const notifyOfChange = require('../../hooks/notifyOfChange');
 const sanitizeAddress = require('../../hooks/sanitizeAddress');
 const setAddress = require('../../hooks/setAddress');
 const fundWallet = require('../../hooks/fundWallet');
 const resolveFiles = require('../../hooks/resolveFiles');
-const { isUserAdmin } = require('../../utils/roleUtility');
-const { isRequestInternal } = require('../../utils/feathersUtils');
 
 const normalizeId = () => context => {
   if (context.id) {
@@ -16,51 +14,13 @@ const normalizeId = () => context => {
   }
   return context;
 };
-const addAdminField = () => context => {
-  const { result } = context;
-  if (isUserAdmin(result.address)) {
-    result.isAdmin = true;
-  }
-  return context;
-};
-const roleAccessKeys = ['isReviewer', 'isProjectOwner', 'isDelegator'];
-
-const restrictUserdataAndAccess = () => context => {
-  if (isRequestInternal(context)) {
-    return context;
-  }
-  const { user } = context.params;
-  const { data } = context;
-  const sentUserAddress = context.id;
-  if (isUserAdmin(user.address) && user.address === sentUserAddress) {
-    return context;
-  }
-  if (!isUserAdmin(user.address) && user.address === sentUserAddress) {
-    roleAccessKeys.forEach(key => {
-      delete data[key];
-    });
-    return context;
-  }
-  if (isUserAdmin(user.address) && user.address !== sentUserAddress) {
-    Object.keys(data).forEach(key => {
-      if (!roleAccessKeys.includes(key)) {
-        delete data[key];
-      }
-    });
-
-    return context;
-  }
-  // when user is not admin and the sent user and the token user is not the same
-  throw new errors.Forbidden();
-};
 
 const restrict = [
   normalizeId(),
-  // restrictToOwner({
-  //   idField: 'address',
-  //   ownerField: 'address',
-  // }),
-  restrictUserdataAndAccess(),
+  restrictToOwner({
+    idField: 'address',
+    ownerField: 'address',
+  }),
 ];
 
 const address = [
@@ -97,7 +57,7 @@ module.exports = {
   },
 
   after: {
-    all: [commons.discard('_id'), addAdminField()],
+    all: [commons.discard('_id')],
     find: [resolveFiles('avatar')],
     get: [resolveFiles('avatar')],
     create: [fundWallet(), resolveFiles('avatar')],
