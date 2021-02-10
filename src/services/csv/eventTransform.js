@@ -7,7 +7,6 @@ const { getTransaction } = require('../../blockchain/lib/web3Helpers');
 const { AdminTypes } = require('../../models/pledgeAdmins.model');
 const { DonationStatus } = require('../../models/donations.model');
 const utils = require('./utils');
-const { MilestoneTypes } = require('../../models/milestones.model');
 
 const capitalizeAdminType = type => {
   if (type.toLowerCase() === 'dac') return 'DAC';
@@ -286,10 +285,7 @@ module.exports = app => {
                     recipientType: 'Milestone',
                     recipient: getEntityLink(milestone, AdminTypes.MILESTONE),
                     actionTakerAddress: from,
-                    actionRecipientAddress:
-                      milestone.type === MilestoneTypes.LPMilestone
-                        ? campaign.title
-                        : milestone.recipientAddress,
+                    actionRecipientAddress: milestone.pluginAddress,
                     etherscanLink: getEtherscanLink(transactionHash),
                   };
                   initializeMilestoneBalance(milestone);
@@ -578,15 +574,9 @@ module.exports = app => {
                 recipientName = ownerEntity.title;
                 recipientType = capitalizeOwnerType;
                 recipient = getEntityLink(ownerEntity, ownerType);
+                actionRecipientAddress = ownerEntity.pluginAddress;
                 if (ownerType === AdminTypes.MILESTONE) {
-                  const milestone = ownerEntity;
-                  actionRecipientAddress =
-                    milestone.type === MilestoneTypes.LPMilestone
-                      ? campaign.title
-                      : milestone.recipientAddress;
                   insertMilestoneId = ownerEntity._id;
-                } else {
-                  actionRecipientAddress = ownerEntity.title;
                 }
               }
               result = {
