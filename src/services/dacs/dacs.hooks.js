@@ -6,7 +6,6 @@ const setAddress = require('../../hooks/setAddress');
 const sanitizeHtml = require('../../hooks/sanitizeHtml');
 const addConfirmations = require('../../hooks/addConfirmations');
 const resolveFiles = require('../../hooks/resolveFiles');
-const createDacSlug = require('./createDacSlug');
 
 const restrict = [
   context => commons.deleteByDot(context.data, 'txHash'),
@@ -90,7 +89,6 @@ module.exports = {
       isDacAllowed(),
       sanitizeAddress('ownerAddress', { required: true, validate: true }),
       sanitizeHtml('description'),
-      createDacSlug(),
     ],
     update: [commons.disallow()],
     patch: [

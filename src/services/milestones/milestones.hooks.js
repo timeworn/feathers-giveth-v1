@@ -21,7 +21,6 @@ const { handleMilestoneConversationAndEmail } = require('../../utils/conversatio
 const checkMilestoneDates = require('./checkMilestoneDates');
 const { getBlockTimestamp, ZERO_ADDRESS } = require('../../blockchain/lib/web3Helpers');
 const { getTokenByAddress } = require('../../utils/tokenHelper');
-const createMilestoneSlug = require('./createMilestoneSlug');
 
 const milestoneResolvers = {
   before: context => {
@@ -338,7 +337,6 @@ module.exports = {
       isTokenAllowed(),
       sanitizeHtml('description'),
       convertTokenToTokenAddress(),
-      createMilestoneSlug(),
     ],
     update: [
       restrict(),

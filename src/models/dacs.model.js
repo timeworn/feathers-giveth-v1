@@ -21,7 +21,6 @@ function createModel(app) {
     // ipfs enabled
     {
       title: { type: String, required: true },
-      slug: { type: String, required: true },
       description: { type: String, required: true },
       communityUrl: { type: String },
       // FIXME: Should be unique but since we are using 0 for new DACs there can be more than one pending... Should instead be undefined
@@ -54,7 +53,6 @@ function createModel(app) {
   dac.index({ status: 1, createdAt: 1 });
   dac.index({ ownerAddress: 1, createdAt: 1 });
   dac.index({ delegateId: 1, ownerAddress: 1 });
-  dac.index({ slug: 1 }, { unique: true });
   return mongooseClient.model('dac', dac);
 }
 
