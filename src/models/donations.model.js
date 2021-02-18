@@ -15,11 +15,6 @@ const DonationStatus = {
   FAILED: 'Failed',
 };
 
-const DONATION_BRIDGE_STATUS = {
-  CANCELLED: 'Cancelled',
-  PAID: 'Paid',
-};
-
 function Donation(app) {
   const mongooseClient = app.get('mongooseClient');
   const { Schema } = mongooseClient;
@@ -45,17 +40,11 @@ function Donation(app) {
       campaignId: { type: String },
       status: {
         type: String,
-        required: true,
+        require: true,
         enum: Object.values(DonationStatus),
         default: DonationStatus.PENDING,
         index: true,
       },
-      bridgeStatus: {
-        type: String,
-        required: true,
-        enum: Object.values(DONATION_BRIDGE_STATUS),
-      },
-      bridgeTxHash: { type: String },
       txHash: { type: String, index: true },
       homeTxHash: { type: String },
       commitTime: { type: Date },
@@ -137,6 +126,5 @@ function Donation(app) {
 
 module.exports = {
   DonationStatus,
-  DONATION_MAIN_NET_STATUS: DONATION_BRIDGE_STATUS,
   createModel: Donation,
 };

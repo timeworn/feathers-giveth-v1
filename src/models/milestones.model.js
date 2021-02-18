@@ -32,6 +32,7 @@ function Milestone(app) {
   const milestone = new Schema(
     {
       title: { type: String, required: true },
+      slug: { type: String, required: true },
       description: { type: String, required: true },
       image: { type: String },
       prevImage: { type: String }, // To store deleted/cleared lost ipfs values
@@ -78,7 +79,6 @@ function Milestone(app) {
       message: { type: String },
       proofItems: [Item],
       messageContext: { type: String },
-      isAllDonationsPaidInBridge: { type: Boolean },
       tokenAddress: { type: String, required: true },
       projectAddedAt: { type: Date }, // Store the time milestone is accepted or added by campaign owner
     },
@@ -91,6 +91,7 @@ function Milestone(app) {
   milestone.index({ status: 1, fullyFunded: 1, createdAt: 1 });
   milestone.index({ createdAt: 1, campaignId: 1 });
   milestone.index({ projectId: 1, campaignId: 1 });
+  milestone.index({ slug: 1 }, { unique: true });
 
   return mongooseClient.model('milestone', milestone);
 }
