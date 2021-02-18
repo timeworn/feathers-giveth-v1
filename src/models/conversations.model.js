@@ -49,9 +49,6 @@ const createModel = function Conversations(app) {
       ],
       donorType: { type: String, enum: Object.values(AdminTypes) },
       donorId: { type: String },
-
-      // this is for payment conversations
-      donationId: { type: String },
       items: [Item],
       txHash: { type: String },
       mined: { type: Boolean, default: false },
