@@ -6,8 +6,6 @@ const setAddress = require('../../hooks/setAddress');
 const sanitizeHtml = require('../../hooks/sanitizeHtml');
 const addConfirmations = require('../../hooks/addConfirmations');
 const resolveFiles = require('../../hooks/resolveFiles');
-const createDacSlug = require('./createDacSlug');
-const { isUserInDelegateWhiteList } = require('../../utils/roleUtility');
 
 const restrict = [
   context => commons.deleteByDot(context.data, 'txHash'),
@@ -61,10 +59,12 @@ const isDacAllowed = () => context => {
     return context;
   }
 
+  const delegateWhitelist = context.app.get('delegateWhitelist').map(addr => addr.toLowerCase());
+
   const items = commons.getItems(context);
 
-  const inWhitelist = async dac => {
-    if (await isUserInDelegateWhiteList(context.app, dac.ownerAddress.toLowerCase())) {
+  const inWhitelist = dac => {
+    if (delegateWhitelist.includes(dac.ownerAddress.toLowerCase())) {
       return;
     }
 
@@ -89,7 +89,6 @@ module.exports = {
       isDacAllowed(),
       sanitizeAddress('ownerAddress', { required: true, validate: true }),
       sanitizeHtml('description'),
-      createDacSlug(),
     ],
     update: [commons.disallow()],
     patch: [
