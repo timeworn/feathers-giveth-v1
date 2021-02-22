@@ -42,7 +42,6 @@ function createModel(app) {
   );
   event.index({ transactionHash: 1, logIndex: 1, transactionIndex: 1, blockNumber: 1, status: 1 });
   event.index({ transactionHash: 1, event: 1 });
-  event.index({ transactionIndex: 1, blockNumber: 1, logIndex: 1 }, { unique: true });
   return mongooseClient.model('event', event);
 }
 
