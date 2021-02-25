@@ -14,7 +14,6 @@ const { getHourlyCryptoConversion } = require('../conversionRates/getConversionR
 const { ZERO_ADDRESS, getTransaction } = require('../../blockchain/lib/web3Helpers');
 const { getTokenByAddress } = require('../../utils/tokenHelper');
 const { updateDonationEntityCountersHook } = require('./updateEntityCounters');
-const { isRequestInternal } = require('../../utils/feathersUtils');
 
 const poSchemas = {
   'po-giver': {
@@ -352,30 +351,6 @@ const addActionTakerAddress = () => async context => {
   }
 };
 
-const validateCreateAndUpdateInputData = () => async context => {
-  if (isRequestInternal(context)) {
-    return;
-  }
-  const { data } = context;
-  const keysToRemove = ['mined', 'lessThanCutoff'];
-
-  // These statuses comes from reading giveth-dapp codes
-  const validStatusForExternalRequests = [
-    DonationStatus.PENDING,
-    DonationStatus.WAITING,
-    DonationStatus.COMMITTED,
-    DonationStatus.TO_APPROVE,
-    DonationStatus.REJECTED,
-    DonationStatus.PAYING,
-  ];
-  if (data.status && !validStatusForExternalRequests.includes(data.status)) {
-    keysToRemove.push('status');
-  }
-  keysToRemove.forEach(key => {
-    delete data[key];
-  });
-};
-
 const setLessThanCutoff = async (context, donation) => {
   const { _id, amountRemaining, token, status } = donation;
 
@@ -455,7 +430,6 @@ module.exports = {
     find: [sanitizeAddress('giverAddress')],
     get: [],
     create: [
-      validateCreateAndUpdateInputData(),
       sanitizeAddress('giverAddress', {
         required: true,
         validate: true,
@@ -467,7 +441,6 @@ module.exports = {
     update: [commons.disallow()],
     patch: [
       restrict(),
-      validateCreateAndUpdateInputData(),
       sanitizeAddress('giverAddress', { validate: true }),
       addActionTakerAddress(),
       convertTokenToTokenAddress(),
