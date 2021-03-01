@@ -3,6 +3,7 @@ const BigNumber = require('bignumber.js');
 const errors = require('@feathersjs/errors');
 const commons = require('feathers-hooks-common');
 const logger = require('winston');
+const { ObjectId } = require('mongoose').Types;
 
 const sanitizeAddress = require('../../hooks/sanitizeAddress');
 const addConfirmations = require('../../hooks/addConfirmations');
@@ -14,6 +15,7 @@ const { getHourlyCryptoConversion } = require('../conversionRates/getConversionR
 const { ZERO_ADDRESS, getTransaction } = require('../../blockchain/lib/web3Helpers');
 const { getTokenByAddress } = require('../../utils/tokenHelper');
 const { updateDonationEntityCountersHook } = require('./updateEntityCounters');
+const { isRequestInternal } = require('../../utils/feathersUtils');
 
 const poSchemas = {
   'po-giver': {
@@ -351,6 +353,30 @@ const addActionTakerAddress = () => async context => {
   }
 };
 
+const validateCreateAndUpdateInputData = () => async context => {
+  if (isRequestInternal(context)) {
+    return;
+  }
+  const { data } = context;
+  const keysToRemove = ['mined', 'lessThanCutoff'];
+
+  // These statuses comes from reading giveth-dapp codes
+  const validStatusForExternalRequests = [
+    DonationStatus.PENDING,
+    DonationStatus.WAITING,
+    DonationStatus.COMMITTED,
+    DonationStatus.TO_APPROVE,
+    DonationStatus.REJECTED,
+    DonationStatus.PAYING,
+  ];
+  if (data.status && !validStatusForExternalRequests.includes(data.status)) {
+    keysToRemove.push('status');
+  }
+  keysToRemove.forEach(key => {
+    delete data[key];
+  });
+};
+
 const setLessThanCutoff = async (context, donation) => {
   const { _id, amountRemaining, token, status } = donation;
 
@@ -393,6 +419,38 @@ const setLessThanCutoffHook = () => async context => {
   return context;
 };
 
+const addProjectToDac = () => async context => {
+  if (
+    !context.result.delegateTypeId ||
+    !context.result.intendedProjectType ||
+    !context.result.intendedProjectTypeId
+  ) {
+    // Just continue if it's a delegation otherwise return
+    return context;
+  }
+  const dacId = context.result.delegateTypeId;
+  const projectObjectId = context.result.intendedProjectTypeId;
+  const dacsService = context.app.service('dacs');
+  const dacModel = dacsService.Model;
+  switch (context.result.intendedProjectType) {
+    case 'campaign':
+      await dacModel.updateOne(
+        { _id: ObjectId(dacId) },
+        { $addToSet: { campaigns: projectObjectId } },
+      );
+      break;
+    case 'milestone':
+      await dacModel.updateOne(
+        { _id: ObjectId(dacId) },
+        { $addToSet: { milestones: projectObjectId } },
+      );
+      break;
+    default:
+      return context;
+  }
+  return context;
+};
+
 const populateSchema = () => context => {
   if (context.params.schema === 'includeGiverDetails') {
     return commons.populate({ schema: poSchemas['po-giver'] })(context);
@@ -430,6 +488,7 @@ module.exports = {
     find: [sanitizeAddress('giverAddress')],
     get: [],
     create: [
+      validateCreateAndUpdateInputData(),
       sanitizeAddress('giverAddress', {
         required: true,
         validate: true,
@@ -441,6 +500,7 @@ module.exports = {
     update: [commons.disallow()],
     patch: [
       restrict(),
+      validateCreateAndUpdateInputData(),
       sanitizeAddress('giverAddress', { validate: true }),
       addActionTakerAddress(),
       convertTokenToTokenAddress(),
@@ -457,6 +517,7 @@ module.exports = {
       updateDonationEntityCountersHook(),
       setEntityUpdated(),
       setLessThanCutoffHook(),
+      addProjectToDac(),
     ],
     update: [],
     patch: [
