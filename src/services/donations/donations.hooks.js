@@ -3,7 +3,6 @@ const BigNumber = require('bignumber.js');
 const errors = require('@feathersjs/errors');
 const commons = require('feathers-hooks-common');
 const logger = require('winston');
-const { ObjectId } = require('mongoose').Types;
 
 const sanitizeAddress = require('../../hooks/sanitizeAddress');
 const addConfirmations = require('../../hooks/addConfirmations');
@@ -419,34 +418,6 @@ const setLessThanCutoffHook = () => async context => {
   return context;
 };
 
-const addProjectToDac = () => async context => {
-  if (
-    !context.result.delegateTypeId ||
-    !context.result.intendedProjectType ||
-    !context.result.intendedProjectTypeId
-  ) {
-    // Just continue if it's a delegation otherwise return
-    return context;
-  }
-  const dacId = context.result.delegateTypeId;
-  const projectObjectId = context.result.intendedProjectTypeId;
-  const dacsService = context.app.service('dacs');
-  const dacModel = dacsService.Model;
-  let campaignId;
-  switch (context.result.intendedProjectType) {
-    case 'campaign':
-      campaignId = projectObjectId;
-      break;
-    case 'milestone':
-      campaignId = (await context.app.service('milestones').get(projectObjectId)).campaignId;
-      break;
-    default:
-      return context;
-  }
-  await dacModel.updateOne({ _id: ObjectId(dacId) }, { $addToSet: { campaigns: campaignId } });
-  return context;
-};
-
 const populateSchema = () => context => {
   if (context.params.schema === 'includeGiverDetails') {
     return commons.populate({ schema: poSchemas['po-giver'] })(context);
@@ -513,7 +484,6 @@ module.exports = {
       updateDonationEntityCountersHook(),
       setEntityUpdated(),
       setLessThanCutoffHook(),
-      addProjectToDac(),
     ],
     update: [],
     patch: [
