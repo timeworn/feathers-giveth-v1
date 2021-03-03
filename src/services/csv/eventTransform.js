@@ -164,6 +164,7 @@ module.exports = app => {
 
     const flushPayouts = async stream => {
       const { transactionHash } = payouts;
+
       // Do nothing if payouts is empty
       if (transactionHash) {
         const { ownerEntity, actionTakerAddress, commitTime } = payouts;
@@ -185,26 +186,6 @@ module.exports = app => {
           actionRecipientAddress: pluginAddress,
           etherscanLink: getEtherscanLink(transactionHash),
         };
-        // eslint-disable-next-line no-restricted-syntax
-        for (const token of tokenWhiteList) {
-          // eslint-disable-next-line no-await-in-loop
-          const [donation] = await donationService.find({
-            query: {
-              txHash: transactionHash,
-              tokenAddress: token.address,
-              status: 'Paid',
-              bridgeStatus: { $exists: true },
-            },
-            paginate: false,
-            schema: 'includeTypeDetails',
-          });
-          if (donation) {
-            const { bridgeStatus, bridgeTransactionTime, bridgeTxHash } = donation;
-            result[`${token.symbol}-bridgeTransactionTime`] = bridgeTransactionTime.toString();
-            result[`${token.symbol}-bridgeTransactionLink`] =
-              bridgeStatus === 'Paid' ? getHomeEtherscanLink(bridgeTxHash) : bridgeStatus;
-          }
-        }
 
         insertCampaignBalanceItems(result);
         insertMilestoneBalanceItems(_id, result);
@@ -425,6 +406,7 @@ module.exports = app => {
                 callback(null, result);
                 return;
               }
+
               const {
                 homeTxHash,
                 giverAddress,
@@ -607,7 +589,6 @@ module.exports = app => {
                   actionRecipientAddress = ownerEntity.title;
                 }
               }
-
               result = {
                 ...result,
                 action,
@@ -624,6 +605,7 @@ module.exports = app => {
                 etherscanLink: getEtherscanLink(transactionHash),
                 homeEtherscanLink: getHomeEtherscanLink(homeTxHash),
               };
+
               if (insertMilestoneId) {
                 insertMilestoneBalanceItems(insertMilestoneId, result);
               }

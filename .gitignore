@@ -126,4 +126,3 @@ test-results.xml
 simulation/**/*.js
 
 scripts/uploadAndPinProjectImagesToPinata.json
-directDonationsReport.csv
