@@ -20,10 +20,22 @@ const getPledgeAdmin = (app, type, id) => {
   }
 };
 
-async function sendMilestoneProposedEmail(app, { milestone }) {
+async function sendMilestoneProposedEmail(
+  app,
+  { milestoneTitle, _id, campaign, campaignId, maxAmount, token },
+) {
   try {
-    await Mailer.milestoneProposed(app, {
-      milestone,
+    const { owner: campaignOwner } = await app.service('campaigns').get(campaignId);
+    const { email, name } = campaignOwner;
+    Mailer.milestoneProposed(app, {
+      recipient: email,
+      user: name,
+      milestoneTitle,
+      milestoneId: _id,
+      campaignTitle: campaign.title,
+      campaignId,
+      amount: maxAmount,
+      token,
     });
   } catch (e) {
     logger.error('error sending proposed milestone notification', e);
@@ -58,7 +70,6 @@ async function sendMilestoneCreatedEmail(
  * */
 const handleMilestoneConversationAndEmail = () => async context => {
   const { data, app, result, params } = context;
-  const { user } = params;
   const { performedByAddress, eventTxHash } = params;
 
   const _createConversation = async messageContext => {
@@ -121,6 +132,7 @@ const handleMilestoneConversationAndEmail = () => async context => {
     title,
     _id,
     campaignId,
+    maxAmount,
     token,
     prevStatus,
     owner,
@@ -133,21 +145,20 @@ const handleMilestoneConversationAndEmail = () => async context => {
     reviewer,
     // recipient,
   } = result;
-  logger.info('sendNotification', {
-    milestoneId: _id,
-    eventTxHash,
-    status,
-    prevStatus,
-    method: context.method,
-  });
+  logger.info('sendNotification', { owner, status, prevStatus });
   if (context.method === 'create' && status === PROPOSED) {
     await sendMilestoneProposedEmail(app, {
-      milestone: result,
+      title,
+      _id,
+      campaign,
+      campaignId,
+      maxAmount,
+      token,
     });
     return;
   }
 
-  if (context.method !== 'patch') {
+  if (context.method !== 'patch' || !data.status) {
     // The rest of code is for patch requests that update the status, so in this case we dont need to run it
     return;
   }
@@ -190,7 +201,12 @@ const handleMilestoneConversationAndEmail = () => async context => {
       }
     } else if (status === PROPOSED && prevStatus === REJECTED) {
       await sendMilestoneProposedEmail(app, {
-        milestone: result,
+        title,
+        _id,
+        campaign,
+        campaignId,
+        maxAmount,
+        token,
       });
     } else if (
       status === IN_PROGRESS &&
@@ -279,11 +295,6 @@ const handleMilestoneConversationAndEmail = () => async context => {
     });
   } else if (data.status === PROPOSED && prevStatus === REJECTED) {
     _createConversation(CONVERSATION_MESSAGE_CONTEXT.RE_PROPOSE);
-  } else if (result.status === PROPOSED && !prevStatus) {
-    Mailer.proposedMilestoneEdited(app, {
-      milestone: result,
-      user,
-    });
   } else if (data.status === ARCHIVED && prevStatus === IN_PROGRESS) {
     _createConversation(CONVERSATION_MESSAGE_CONTEXT.ARCHIVED);
   }
@@ -321,14 +332,14 @@ const handleDonationConversationAndEmail = async (app, donation) => {
     delegateTypeId || ownerTypeId,
   );
 
-  // this is an initial donationrequestDelegation
+  // this is an initial donation
   if (homeTxHash) {
     try {
       const giver = await app.service('users').get(giverAddress);
 
       // thank giver if they are registered
       if (giver.email) {
-        Mailer.donationReceipt(app, {
+        Mailer.thanksFromDonationGiver(app, {
           recipient: giver.email,
           user: giver.name,
           amount,
@@ -368,7 +379,7 @@ const handleDonationConversationAndEmail = async (app, donation) => {
   } else if (delegateType || ownerType === AdminTypes.CAMPAIGN) {
     // notify the pledge admin
     // if this is a DAC or a campaign, then the donation needs delegation
-    Mailer.requestDelegation(app, {
+    Mailer.delegationRequired(app, {
       recipient: pledgeAdmin.owner.email,
       user: pledgeAdmin.owner.name,
       donationType: delegateType || ownerType, // dac / campaign
@@ -380,8 +391,13 @@ const handleDonationConversationAndEmail = async (app, donation) => {
     // if this is a milestone then no action is required
 
     // pledge = donation, pledgeAdmin= milestone,  performedByAddress:pledge.actionTakerAddress
-    Mailer.milestoneReceivedDonation(app, {
-      milestone: pledgeAdmin,
+    const { owner } = pledgeAdmin;
+
+    Mailer.donationReceived(app, {
+      recipient: owner.email,
+      user: owner.name,
+      donationType: ownerType,
+      donatedToTitle: pledgeAdmin.title,
       amount,
       token,
     });

@@ -1,7 +1,7 @@
 /* eslint-disable no-param-reassign */
 
 const { AdminTypes } = require('../models/pledgeAdmins.model');
-const { EmailImages, EmailSubscribeTypes } = require('../models/emails.model');
+const { EMAIL_IMAGES, EMAIL_SUBSCRIBE_TYPES } = require('../models/emails.model');
 
 const emailNotificationTemplate = 'notification';
 const emailStyle = `style='line-height: 33px; font-size: 22px;'`;
@@ -27,7 +27,10 @@ const sendEmail = (app, data) => {
   emailService.create(data);
 };
 
-const donationReceipt = (app, { recipient, user, amount, token, donationType, donatedToTitle }) => {
+const thanksFromDonationGiver = (
+  app,
+  { recipient, user, amount, token, donationType, donatedToTitle },
+) => {
   const data = {
     recipient,
     template: emailNotificationTemplate,
@@ -36,7 +39,7 @@ const donationReceipt = (app, { recipient, user, amount, token, donationType, do
       token.symbol
     } to the ${donationType} "${donatedToTitle}"!`,
     title: 'You are so awesome!',
-    image: EmailImages.DONATION_BANNER,
+    image: EMAIL_IMAGES.DONATION_BANNER,
     text: `
         <p><span style="line-height: 33px; font-size: 22px;">Hi ${user}</span></p>
         <p>
@@ -48,73 +51,43 @@ const donationReceipt = (app, { recipient, user, amount, token, donationType, do
       `,
     cta: 'Manage your Donations',
     ctaRelativeUrl: '/donations',
-    unsubscribeType: EmailSubscribeTypes.DONATION_RECEIPT,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.DONATION_RECEIPT,
     unsubscribeReason: 'You receive this email from Giveth because you have made a donation',
   };
 
   sendEmail(app, data);
 };
 
-const milestoneReceivedDonation = (app, { milestone, amount, token }) => {
-  const { owner, recipient, campaign } = milestone;
-  const subject = 'Giveth - Your Milestone has received a donation!';
-  const milestoneTitle = milestone.title;
+const donationReceived = (
+  app,
+  { recipient, user, donationType, donatedToTitle, amount, token },
+) => {
   const normalizedAmount = normalizeAmount(amount);
-  const description = `Your Milestone ${milestoneTitle} has received a donation of ${normalizedAmount} ${token.symbol}!`;
-  const ownerEmailData = {
-    recipient: owner.email,
+  const data = {
+    recipient,
     template: emailNotificationTemplate,
-    subject,
-    secretIntro: description,
+    subject: "Giveth - You've received a donation!",
+    secretIntro: `You have received a donation of ${normalizedAmount} ${token.symbol} for the ${donationType} "${donatedToTitle}"!`,
     title: 'You are so awesome!',
-    image: EmailImages.DONATION_BANNER,
+    image: EMAIL_IMAGES.DONATION_BANNER,
     text: `
-        <p><span ${emailStyle}>Hi ${owner.name}</span></p>
+        <p><span ${emailStyle}>Hi ${user}</span></p>
         <p>
-          Your Milestone <strong>${milestoneTitle}</strong> has received a donation of
-          <span>${normalizedAmount} ${token.symbol}.</span>
-          Check to see how close you are to reaching your goal</em>.
+          You have received a donation of
+          <span>${normalizedAmount} ${token.symbol}</span>
+          for your ${donationType} <em>${donatedToTitle}</em>.
         </p>
       `,
-    cta: `Manage your account`,
-    ctaRelativeUrl: `/my-milestones`,
-    unsubscribeType: EmailSubscribeTypes.DONATION_RECEIVED,
-    unsubscribeReason: `You receive this email because you run a milestone`,
-    campaignId: campaign._id,
-    milestoneId: milestone._id,
-  };
-  sendEmail(app, ownerEmailData);
-  if (!recipient.email || recipient.email === owner.email) {
-    // To not sending donation email twice for user
-    return;
-  }
-  const recipientEmailData = {
-    recipient: owner.email,
-    template: emailNotificationTemplate,
-    subject,
-    secretIntro: description,
-    title: 'You are so awesome!',
-    image: EmailImages.DONATION_BANNER,
-    text: `
-        <p><span ${emailStyle}>Hi ${recipient.name}</span></p>
-        <p>
-          Your Milestone <strong>${milestoneTitle}</strong> has received a donation of
-          <span>${normalizedAmount} ${token.symbol}.</span>
-          Check to see how close you are to reaching your goal</em>.
-        </p>
-      `,
-    cta: `Manage your account`,
-    ctaRelativeUrl: `/my-milestones`,
-    unsubscribeType: EmailSubscribeTypes.DONATION_RECEIVED,
-    unsubscribeReason: `You receive this email because you run a milestone`,
-    campaignId: campaign._id,
-    milestoneId: milestone._id,
+    cta: `Manage your ${donationType}`,
+    ctaRelativeUrl: `/my-${donationType}s`,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.DONATION_RECEIVED,
+    unsubscribeReason: `You receive this email because you run a ${donationType}`,
   };
 
-  sendEmail(app, recipientEmailData);
+  sendEmail(app, data);
 };
 
-const requestDelegation = (
+const delegationRequired = (
   app,
   {
     recipient,
@@ -133,7 +106,7 @@ const requestDelegation = (
     subject: 'Giveth - Delegation required for new donation!',
     secretIntro: `Take action! Please delegate a new donation of ${normalizedAmount} ${token.symbol} for the ${donationType} "${donatedToTitle}"!`,
     title: "Take action! You've received a donation, delegate now!",
-    image: EmailImages.DONATION_BANNER,
+    image: EMAIL_IMAGES.DONATION_BANNER,
     text: `
         <p><span ${emailStyle}>Hi ${user}</span></p>
         <p>
@@ -151,7 +124,7 @@ const requestDelegation = (
       `,
     cta: `Delegate Donation`,
     ctaRelativeUrl: `/delegations`,
-    unsubscribeType: EmailSubscribeTypes.REQUEST_DELEGATION,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.REQUEST_DELEGATION,
     unsubscribeReason: `You receive this email because you run a ${donationType}`,
   };
 
@@ -180,7 +153,7 @@ const donationDelegated = (
       amount,
     )} ${token.symbol} to the ${delegationType} "${delegatedToTitle}"!`,
     title: 'Take action! Your donation has been delegated!',
-    image: EmailImages.DONATION_BANNER,
+    image: EMAIL_IMAGES.DONATION_BANNER,
     text: `
         <p><span ${emailStyle}>Hi ${user}</span></p>
         <p>
@@ -198,37 +171,28 @@ const donationDelegated = (
       `,
     cta: `View Donations`,
     ctaRelativeUrl: `/donations`,
-    unsubscribeType: EmailSubscribeTypes.DONATION_DELEGATED,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.DONATION_DELEGATED,
     unsubscribeReason: `You receive this email because your donation was delegated`,
   };
 
   sendEmail(app, data);
 };
 
-const milestoneProposed = async (app, { milestone }) => {
-  const {
-    owner: milestoneOwner,
-    title: milestoneTitle,
-    _id: milestoneId,
-    reviewer: milestoneReviewer,
-    campaign,
-    token,
-    maxAmount: amount,
-  } = milestone;
-  const { title: campaignTitle, _id: campaignId, ownerAddress: campaignOwnerAddress } = campaign;
-  const campaignOwner = await app.service('users').get(campaignOwnerAddress);
-
-  const campaignOwnerEmailData = {
-    recipient: campaignOwner.email,
+const milestoneProposed = (
+  app,
+  { recipient, user, milestoneTitle, milestoneId, campaignTitle, campaignId, amount, token },
+) => {
+  const data = {
+    recipient,
     template: emailNotificationTemplate,
     subject: 'Giveth - A Milestone has been proposed!',
     secretIntro: `Take action! A Milestone has been proposed for your Campaign! Please accept or reject.`,
     title: 'Take action: Milestone proposed!',
-    image: EmailImages.REVIEW_BANNER,
+    image: EMAIL_IMAGES.SUGGEST_MILESTONE,
     text: `
-        <p><span ${emailStyle}>Hi ${campaignOwner.name}</span></p>
+        <p><span ${emailStyle}>Hi ${user}</span></p>
         <p>
-          The Milestone <strong>${milestoneTitle}</strong> for <em>${normalizeAmount(amount)} ${
+          The Milestone <em>${milestoneTitle}</em> for <em>${normalizeAmount(amount)} ${
       token.symbol
     }</em> has been proposed to <em>${campaignTitle}</em> Campaign .
           If you think this is a great idea, then <strong>please approve this Milestone within 3 days</strong> to add it to your Campaign.
@@ -237,130 +201,12 @@ const milestoneProposed = async (app, { milestone }) => {
       `,
     cta: `See the Milestone`,
     ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.MILESTONE_PROPOSED,
     unsubscribeReason: `You receive this email because you run a Campaign`,
-    milestoneId,
-    campaignId,
+    // message: message,
   };
-  sendEmail(app, campaignOwnerEmailData);
 
-  const milestoneOwnerEmailData = {
-    recipient: milestoneOwner.email,
-    template: emailNotificationTemplate,
-    subject: 'Giveth - Your Milestone Proposal has been sent!',
-    secretIntro: `our proposed Milestone ${milestoneTitle} has been submitted for review!`,
-    title: 'Finger Crossed!',
-    image: EmailImages.SUGGEST_MILESTONE,
-    text: `
-        <p><span ${emailStyle}>Hi ${milestoneOwner.name}</span></p>
-        <p>
-          Your proposed Milestone <strong>${milestoneTitle}</strong>
-          has been submitted for review!
-          We’ll let you know if the Milestone is approved by
-          the reviewer so you can start raising funds.</p>
-      `,
-    cta: `Manage your Milestones`,
-    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
-    unsubscribeReason: `You receive this email because you proposed a milestone`,
-    milestoneId,
-    campaignId,
-  };
-  sendEmail(app, milestoneOwnerEmailData);
-
-  if (!milestoneReviewer) {
-    return;
-  }
-  const milestoneReviewerEmailData = {
-    recipient: milestoneReviewer.email,
-    template: emailNotificationTemplate,
-    subject: 'Giveth - Time to review!',
-    secretIntro: `Take action: A Milestone has been proposed for your review!`,
-    title: 'Take action: Milestone proposed!',
-    image: EmailImages.REVIEW_BANNER,
-    text: `
-        <p><span ${emailStyle}>Hi ${milestoneReviewer.name || ''}</span></p>
-        <p>
-          The Milestone <strong>${milestoneTitle}</strong>  has been proposed for your review.
-           If you think this is a great idea, <strong>please approve this Milestone within 3
-           days</strong> to add it to your Campaign. If not, then please reject it with a comment.'</p>
-      `,
-    cta: `See the Milestone`,
-    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
-    unsubscribeReason: `You receive this email because you are milestone reviewer`,
-    campaignId,
-    milestoneId,
-  };
-  sendEmail(app, milestoneReviewerEmailData);
-};
-
-const campaignOwnerEditedProposedMilestone = async (app, { milestone, campaignOwner }) => {
-  const { title: milestoneTitle, _id: milestoneId, campaign } = milestone;
-  const { title: campaignTitle, _id: campaignId } = campaign;
-
-  const data = {
-    recipient: campaignOwner.email,
-    template: emailNotificationTemplate,
-    subject: 'Giveth - Your Milestone edits have been submitted',
-    secretIntro: `You have edited the proposed Milestone ${milestoneTitle}`,
-    title: 'Your Milestone edits have been submitted',
-    image: EmailImages.SUGGEST_MILESTONE,
-    text: `
-        <p><span ${emailStyle}>Hi ${campaignOwner.name || ''}</span></p>
-        <p>
-          Your edits to the proposed Milestone  <strong>${milestoneTitle}</strong>
-           in your Campaign <strong>${campaignTitle}</strong>
-            have been submitted. Check to review your edits.</p>
-      `,
-    cta: `See the Milestone`,
-    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
-    unsubscribeReason: `You receive this email because you are campaign manager`,
-    campaignId,
-    milestoneId,
-  };
   sendEmail(app, data);
-};
-
-const milestoneOwnerEditedProposedMilestone = async (app, { milestone }) => {
-  const { title: milestoneTitle, _id: milestoneId, campaign, owner: milestoneOwner } = milestone;
-  const { _id: campaignId } = campaign;
-
-  const data = {
-    recipient: milestoneOwner.email,
-    template: emailNotificationTemplate,
-    subject: 'Giveth - Your Milestone edits have been submitted',
-    secretIntro: `You have edited the proposed Milestone ${milestoneTitle}`,
-    title: 'Your Milestone edits have been submitted',
-    image: EmailImages.SUGGEST_MILESTONE,
-    text: `
-        <p><span ${emailStyle}>Hi ${milestoneOwner.name || ''}</span></p>
-        <p>
-          Your edits to the proposed Milestone  <strong>${milestoneTitle}</strong>
-            have been submitted. Check to review your edits.</p>
-      `,
-    cta: `See the Milestone`,
-    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
-    unsubscribeReason: `You receive this email because you are milestone owner`,
-    campaignId,
-    milestoneId,
-  };
-  sendEmail(app, data);
-};
-
-const proposedMilestoneEdited = async (app, { milestone, user }) => {
-  if (user.address === milestone.owner.address) {
-    await milestoneOwnerEditedProposedMilestone(app, {
-      milestone,
-    });
-  } else if (user.address === milestone.campaign.ownerAddress) {
-    await campaignOwnerEditedProposedMilestone(app, {
-      milestone,
-      campaignOwner: user,
-    });
-  }
 };
 
 const proposedMilestoneAccepted = (
@@ -373,7 +219,7 @@ const proposedMilestoneAccepted = (
     subject: 'Giveth - Your proposed Milestone is accepted!',
     secretIntro: `Your Milestone ${milestoneTitle} has been accepted by the Campaign Owner. You can now receive donations.`,
     title: 'Take action: Milestone proposed!',
-    image: EmailImages.MILESTONE_REVIEW_APPROVED,
+    image: EMAIL_IMAGES.MILESTONE_REVIEW_APPROVED,
     text: `
         <p><span style="line-height: 33px; font-size: 22px;">Hi ${user}</span></p>
         <p>
@@ -384,7 +230,7 @@ const proposedMilestoneAccepted = (
       `,
     cta: `Manage Milestone`,
     ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_ACCEPTED,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.PROPOSED_MILESTONE_ACCEPTED,
     unsubscribeReason: `You receive this email because you run a Milestone`,
     message,
   };
@@ -402,7 +248,7 @@ const proposedMilestoneRejected = (
     subject: 'Giveth - Your proposed Milestone is rejected :-(',
     secretIntro: `Your Milestone ${milestoneTitle} has been rejected by the Campaign Owner :-(`,
     title: 'Milestone rejected :-(',
-    image: EmailImages.MILESTONE_REVIEW_APPROVED,
+    image: EMAIL_IMAGES.MILESTONE_REVIEW_APPROVED,
     text: `
         <p><span ${emailStyle}>Hi ${user}</span></p>
         <p>
@@ -413,7 +259,7 @@ const proposedMilestoneRejected = (
       `,
     cta: `Manage Milestone`,
     ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_REJECTED,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.PROPOSED_MILESTONE_REJECTED,
     unsubscribeReason: `You receive this email because you proposed a Milestone`,
     message,
   };
@@ -431,7 +277,7 @@ const milestoneRequestReview = (
     subject: 'Giveth - Time to review!',
     secretIntro: `Take action: you are requested to review the Milestone ${milestoneTitle} within 3 days.`,
     title: 'Milestone review requested',
-    image: EmailImages.REVIEW_BANNER,
+    image: EMAIL_IMAGES.REVIEW_BANNER,
     text: `
         <p><span ${emailStyle}>Hi ${user}</span></p>
         <p>
@@ -446,7 +292,7 @@ const milestoneRequestReview = (
       `,
     cta: `Review Milestone`,
     ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.MILESTONE_REQUEST_REVIEW,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.MILESTONE_REQUEST_REVIEW,
     unsubscribeReason: `You receive this email because you run a Milestone`,
     message,
   };
@@ -463,7 +309,7 @@ const milestoneMarkedCompleted = (
     subject: 'Giveth - Your Milestone is finished!',
     secretIntro: `Your Milestone ${milestoneTitle} has been marked complete by the reviewer. The recipient can now collect the payment.`,
     title: `Milestone completed! Time to collect ${token.symbol}.`,
-    image: EmailImages.MILESTONE_REVIEW_APPROVED,
+    image: EMAIL_IMAGES.MILESTONE_REVIEW_APPROVED,
     text: `
         <p><span style="line-height: 33px; font-size: 22px;">Hi ${user}</span></p>
         <p>
@@ -475,7 +321,7 @@ const milestoneMarkedCompleted = (
       `,
     cta: `Manage Milestone`,
     ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.MILESTONE_REVIEW_APPROVED,
     unsubscribeReason: `You receive this email because you run a Milestone`,
     message,
   };
@@ -490,10 +336,10 @@ const milestoneReviewRejected = (
     recipient,
     template: emailNotificationTemplate,
     subject: 'Giveth - Milestone rejected by reviewer :-(',
-    type: EmailSubscribeTypes.MILESTONE_REVIEW_REJECTED,
+    type: EMAIL_SUBSCRIBE_TYPES.MILESTONE_REVIEW_REJECTED,
     secretIntro: `The completion of your Milestone ${milestoneTitle} has been rejected by the reviewer.`,
     title: 'Milestone completion rejected.',
-    image: EmailImages.MILESTONE_REVIEW_REJECTED,
+    image: EMAIL_IMAGES.MILESTONE_REVIEW_REJECTED,
     text: `
         <p><span style="line-height: 33px; font-size: 22px;">Hi ${user}</span></p>
         <p>
@@ -502,7 +348,7 @@ const milestoneReviewRejected = (
       `,
     cta: `Manage Milestone`,
     ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_REJECTED,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.MILESTONE_REVIEW_REJECTED,
     unsubscribeReason: `You receive this email because you run a Milestone`,
     message,
   };
@@ -518,10 +364,10 @@ const milestoneCreated = (
     recipient,
     template: emailNotificationTemplate,
     subject: 'Giveth - Milestone created with you as a recipient',
-    type: EmailSubscribeTypes.MILESTONE_CREATED,
+    type: EMAIL_SUBSCRIBE_TYPES.MILESTONE_CREATED,
     secretIntro: `A Milestone ${milestoneTitle} has been created with you as the recipient.`,
     title: 'Milestone created.',
-    image: EmailImages.MILESTONE_REVIEW_APPROVED,
+    image: EMAIL_IMAGES.MILESTONE_REVIEW_APPROVED,
     text: `
         <p><span ${emailStyle}>Hi ${user}</span></p>
         <p>
@@ -532,13 +378,12 @@ const milestoneCreated = (
       `,
     cta: `See your Milestones`,
     ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.MILESTONE_CREATED,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.MILESTONE_CREATED,
     unsubscribeReason: `You receive this email because you are the recipient of a Milestone`,
   };
 
   sendEmail(app, data);
 };
-
 const milestoneCanceled = (
   app,
   { recipient, user, milestoneTitle, milestoneId, campaignTitle, campaignId, message },
@@ -547,10 +392,10 @@ const milestoneCanceled = (
     recipient,
     template: emailNotificationTemplate,
     subject: 'Giveth - Milestone canceled :-(',
-    type: EmailSubscribeTypes.MILESTONE_CANCELLED,
+    type: EMAIL_SUBSCRIBE_TYPES.MILESTONE_CANCELLED,
     secretIntro: `Your Milestone ${milestoneTitle} has been canceled.`,
     title: 'Milestone Canceled',
-    image: EmailImages.MILESTONE_CANCELLED,
+    image: EMAIL_IMAGES.MILESTONE_CANCELLED,
     text: `
         <p><span ${emailStyle}>Hi ${user}</span></p>
         <p>
@@ -559,7 +404,7 @@ const milestoneCanceled = (
       `,
     cta: `Manage Milestones`,
     ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.MILESTONE_CANCELLED,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.MILESTONE_CANCELLED,
     unsubscribeReason: `You receive this email because you run a Milestone`,
     message,
   };
@@ -578,7 +423,7 @@ const donationsCollected = (
     type: 'milestone-donations-collected',
     secretIntro: `Your Milestone ${milestoneTitle} has been paid.`,
     title: 'Milestone Donations Collected',
-    image: EmailImages.MILESTONE_REVIEW_APPROVED,
+    image: EMAIL_IMAGES.MILESTONE_REVIEW_APPROVED,
     text: `
         <p><span ${emailStyle}>Hi ${user}</span></p>
         <p>The following payments have been initiated for your Milestone <em>${milestoneTitle}</em>:</p>
@@ -591,7 +436,7 @@ const donationsCollected = (
       `,
     cta: `See your Milestones`,
     ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
-    unsubscribeType: EmailSubscribeTypes.DONATIONS_COLLECTED,
+    unsubscribeType: EMAIL_SUBSCRIBE_TYPES.DONATIONS_COLLECTED,
     unsubscribeReason: `You receive this email because you are the recipient of a Milestone`,
   };
   sendEmail(app, data);
@@ -603,14 +448,13 @@ module.exports = {
   generateMilestoneCtaRelativeUrl,
 
   donationsCollected,
-  donationReceipt,
-  milestoneReceivedDonation,
-  requestDelegation,
+  thanksFromDonationGiver,
+  donationReceived,
+  delegationRequired,
   donationDelegated,
   milestoneProposed,
   proposedMilestoneAccepted,
   proposedMilestoneRejected,
-  proposedMilestoneEdited,
   milestoneReviewRejected,
   milestoneMarkedCompleted,
   milestoneRequestReview,
