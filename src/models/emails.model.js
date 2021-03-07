@@ -1,4 +1,4 @@
-const EmailImages = {
+const EMAIL_IMAGES = {
   MILESTONE_REVIEW_APPROVED: 'Giveth-milestone-review-approved-banner-email.png',
   MILESTONE_REVIEW_REJECTED: 'Giveth-milestone-review-rejected-banner-email.png',
   MILESTONE_CANCELLED: 'Giveth-milestone-canceled-banner-email.png',
@@ -7,13 +7,12 @@ const EmailImages = {
   REVIEW_BANNER: 'Giveth-review-banner-email.png',
 };
 
-const EmailSubscribeTypes = {
+const EMAIL_SUBSCRIBE_TYPES = {
   DONATION_RECEIPT: 'donation-receipt',
   DONATION_RECEIVED: 'donation-received',
   REQUEST_DELEGATION: 'request-delegation',
   DONATION_DELEGATED: 'donation-delegated',
   MILESTONE_PROPOSED: 'milestone-proposed',
-  PROPOSED_MILESTONE_EDITED: 'proposed-milestone-edited',
   PROPOSED_MILESTONE_ACCEPTED: 'proposed-milestone-accepted',
   PROPOSED_MILESTONE_REJECTED: 'proposed-milestone-rejected',
   MILESTONE_REQUEST_REVIEW: 'milestone-request-review',
@@ -41,17 +40,14 @@ function createModel(app) {
       secretIntro: { type: String, required: true },
       title: { type: String, required: true },
       text: { type: String, required: true },
-      image: { type: String, required: true, enum: Object.values(EmailImages) },
-      unsubscribeType: { type: String, required: true, enum: Object.values(EmailSubscribeTypes) },
+      image: { type: String, required: true, enum: Object.values(EMAIL_IMAGES) },
+      unsubscribeType: { type: String, required: true, enum: Object.values(EMAIL_SUBSCRIBE_TYPES) },
       unsubscribeReason: { type: String, required: true },
       cta: { type: String, required: true },
       ctaRelativeUrl: { type: String, required: true },
       message: { type: String, default: '' },
       dappMailerResponse: { type: Object },
-      dappUrl: { type: String },
       error: { type: String, default: '' },
-      milestoneId: { type: String },
-      campaignId: { type: String },
       status: { type: String, enum: Object.values(EMAIL_STATUS), default: EMAIL_STATUS.PENDING },
     },
     {
@@ -62,8 +58,8 @@ function createModel(app) {
 }
 
 module.exports = {
-  EmailSubscribeTypes,
-  EmailImages,
+  EMAIL_SUBSCRIBE_TYPES,
+  EMAIL_IMAGES,
   createModel,
   EMAIL_STATUS,
 };
