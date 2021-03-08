@@ -1,4 +1,8 @@
-const { seedData, sleep } = require('./testUtility');
+const { seedData } = require('./testUtility');
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 before(async () => {
   try {
