@@ -14,7 +14,6 @@ const {
   milestoneMarkedCompleted,
   milestoneCanceled,
   donationsCollected,
-  milestoneReceivedDonation,
 } = require('./dappMailer');
 const { EmailSubscribeTypes } = require('../models/emails.model');
 const {
@@ -61,7 +60,6 @@ function capitalizeDelegateTypeTestCases() {
     assert.equal(result, 'Campaign');
   });
 }
-
 function generateMilestoneCtaRelativeUrlTestCases() {
   it('should generate milestoneUrl by campaignId and milestoneId', () => {
     const milestoneId = generateRandomMongoId();
@@ -88,27 +86,9 @@ const createMilestoneAndCampaign = async () => {
   });
   const campaignOwner = await userService.create({
     address: generateRandomEtheriumAddress(),
-    email: `${new Date().getTime()}-campaignOwner@test.giveth`,
+    email: `${new Date().getTime()}-milestoneOwner@test.giveth`,
     isAdmin: true,
-    name: `campaignOwner ${new Date()}`,
-  });
-  const dacOwner = await userService.create({
-    address: generateRandomEtheriumAddress(),
-    email: `${new Date().getTime()}-dacOwner@test.giveth`,
-    isAdmin: true,
-    name: `dacOwner ${new Date()}`,
-  });
-  const dacSubscriber = await userService.create({
-    address: generateRandomEtheriumAddress(),
-    email: `${new Date().getTime()}-dacSubscriber@test.giveth`,
-    isAdmin: true,
-    name: `dacSubscriber ${new Date()}`,
-  });
-  const campaignReviewer = await userService.create({
-    address: generateRandomEtheriumAddress(),
-    email: `${new Date().getTime()}-campaignReviewer@test.giveth`,
-    isAdmin: true,
-    name: `campaignReviewer ${new Date()}`,
+    name: `milestoneOwner ${new Date()}`,
   });
   const milestoneRecipient = await userService.create({
     address: generateRandomEtheriumAddress(),
@@ -119,11 +99,7 @@ const createMilestoneAndCampaign = async () => {
   const campaign = (
     await request(baseUrl)
       .post('/campaigns')
-      .send({
-        ...SAMPLE_DATA.CREATE_CAMPAIGN_DATA,
-        ownerAddress: campaignOwner.address,
-        reviewerAddress: campaignReviewer.address,
-      })
+      .send({ ...SAMPLE_DATA.CREATE_CAMPAIGN_DATA, ownerAddress: campaignOwner.address })
       .set({ Authorization: getJwt(campaignOwner.address) })
   ).body;
   const milestone = (
@@ -140,42 +116,18 @@ const createMilestoneAndCampaign = async () => {
       .set({ Authorization: getJwt(milestoneOwner.address) })
   ).body;
 
-  const dac = (
-    await request(baseUrl)
-      .post('/dacs')
-      .send({
-        ...SAMPLE_DATA.CREATE_DAC_DATA,
-        ownerAddress: dacOwner.address,
-        campaigns: [campaign._id],
-      })
-      .set({ Authorization: getJwt(dacOwner.address) })
-  ).body;
-
-  await app
-    .service('subscriptions')
-    .Model({
-      userAddress: dacSubscriber.address,
-      projectType: 'dac',
-      projectTypeId: String(dac._id),
-      enabled: true,
-    })
-    .save();
-
   return {
     milestone,
     campaign,
     milestoneOwner,
     campaignOwner,
-    campaignReviewer,
     milestoneReviewer,
     milestoneRecipient,
-    dacOwner,
-    dacSubscriber,
   };
 };
 
 function proposedMilestoneEditedTestCases() {
-  it('email to milestone owner and campaign owner after editing proposed milestone', async () => {
+  it('email to milestone owner after editing proposed milestone', async () => {
     const emailService = app.service('emails');
     const {
       campaign,
@@ -189,7 +141,7 @@ function proposedMilestoneEditedTestCases() {
     });
 
     // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
+    await sleep(200);
     const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
@@ -224,7 +176,7 @@ function proposedMilestoneEditedTestCases() {
     });
 
     // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
+    await sleep(200);
     const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
@@ -261,8 +213,20 @@ function proposedMilestoneEditedTestCases() {
       user: milestoneReviewer,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
+    await sleep(200);
 
+    // const milestoneOwnerEmails = await emailService.find({
+    //   paginate: false,
+    //   query: {
+    //     recipient: milestoneOwner.email,
+    //     milestoneId: milestone._id,
+    //     campaignId: campaign._id,
+    //     unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
+    //   },
+    // });
+    // assert.isAtLeast(milestoneOwnerEmails.length, 1);
+
+    // in this case should not send email to campaign manager
     const campaignOwnerEmails = await emailService.find({
       paginate: false,
       query: {
@@ -277,53 +241,20 @@ function proposedMilestoneEditedTestCases() {
 }
 
 function milestoneProposedTestCases() {
-  it('email to campaignOwner after milestone proposed', async () => {
+  it('email to campaignOwner, milestoneReviewer and milestoneOwner after milestone proposed', async () => {
     const emailService = app.service('emails');
-    const { campaign, milestone, campaignOwner } = await createMilestoneAndCampaign();
+    const {
+      campaign,
+      milestone,
+      milestoneReviewer,
+      campaignOwner,
+      milestoneOwner,
+    } = await createMilestoneAndCampaign();
     await milestoneProposed(app, {
       milestone,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
-    const campaignOwnerEmails = await emailService.find({
-      paginate: false,
-      query: {
-        recipient: campaignOwner.email,
-        milestoneId: milestone._id,
-        campaignId: campaign._id,
-        unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
-      },
-    });
-    assert.isAtLeast(campaignOwnerEmails.length, 1);
-  });
-  it('email to  milestoneReviewer after milestone proposed', async () => {
-    const emailService = app.service('emails');
-    const { campaign, milestone, milestoneReviewer } = await createMilestoneAndCampaign();
-    await milestoneProposed(app, {
-      milestone,
-    });
-    // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
-
-    const milestoneReviewerEmails = await emailService.find({
-      paginate: false,
-      query: {
-        recipient: milestoneReviewer.email,
-        milestoneId: milestone._id,
-        campaignId: campaign._id,
-        unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
-      },
-    });
-    assert.isAtLeast(milestoneReviewerEmails.length, 1);
-  });
-  it('email to milestoneOwner after milestone proposed', async () => {
-    const emailService = app.service('emails');
-    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
-    await milestoneProposed(app, {
-      milestone,
-    });
-    // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
+    await sleep(200);
 
     const milestoneOwnerEmails = await emailService.find({
       paginate: false,
@@ -335,20 +266,48 @@ function milestoneProposedTestCases() {
       },
     });
     assert.isAtLeast(milestoneOwnerEmails.length, 1);
+
+    const milestoneReviewerEmails = await emailService.find({
+      paginate: false,
+      query: {
+        recipient: milestoneReviewer.email,
+        milestoneId: milestone._id,
+        campaignId: campaign._id,
+        unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
+      },
+    });
+    assert.isAtLeast(milestoneReviewerEmails.length, 1);
+
+    // in this case should not send email to campaign manager
+    const campaignOwnerEmails = await emailService.find({
+      paginate: false,
+      query: {
+        recipient: campaignOwner.email,
+        milestoneId: milestone._id,
+        campaignId: campaign._id,
+        unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
+      },
+    });
+    assert.isAtLeast(campaignOwnerEmails.length, 1);
   });
 }
 
 function proposedMilestoneAcceptedTestCases() {
   it('email to milestoneOwner, after proposed Milestone Accepted', async () => {
     const emailService = app.service('emails');
-    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
+    const {
+      campaign,
+      milestone,
+      milestoneOwner,
+      milestoneRecipient,
+    } = await createMilestoneAndCampaign();
     const message = `test message - ${new Date()}`;
     await proposedMilestoneAccepted(app, {
       milestone,
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
+    await sleep(200);
 
     const milestoneOwnerEmails = await emailService.find({
       paginate: false,
@@ -361,17 +320,7 @@ function proposedMilestoneAcceptedTestCases() {
     });
     assert.isAtLeast(milestoneOwnerEmails.length, 1);
     assert.equal(milestoneOwnerEmails[0].message, message);
-  });
-  it('email to milestoneRecipient, after proposed Milestone Accepted', async () => {
-    const emailService = app.service('emails');
-    const { campaign, milestone, milestoneRecipient } = await createMilestoneAndCampaign();
-    const message = `test message - ${new Date()}`;
-    await proposedMilestoneAccepted(app, {
-      milestone,
-      message,
-    });
-    // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
+
     const recipientEmails = await emailService.find({
       paginate: false,
       query: {
@@ -383,28 +332,6 @@ function proposedMilestoneAcceptedTestCases() {
     });
     assert.isAtLeast(recipientEmails.length, 1);
     assert.equal(recipientEmails[0].message, message);
-  });
-  it('email to campaigns parent dac subscriber, after proposed Milestone Accepted', async () => {
-    const emailService = app.service('emails');
-    const { campaign, milestone, dacSubscriber } = await createMilestoneAndCampaign();
-    const message = `test message - ${new Date()}`;
-    await proposedMilestoneAccepted(app, {
-      milestone,
-      message,
-    });
-    // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
-    const dacSubscriberEmails = await emailService.find({
-      paginate: false,
-      query: {
-        recipient: dacSubscriber.email,
-        milestoneId: milestone._id,
-        campaignId: campaign._id,
-        unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_ACCEPTED,
-      },
-    });
-    assert.isAtLeast(dacSubscriberEmails.length, 1);
-    assert.equal(dacSubscriberEmails[0].message, message);
   });
 }
 
@@ -418,7 +345,7 @@ function proposedMilestoneRejectedTestCases() {
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
+    await sleep(200);
     const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
@@ -443,7 +370,7 @@ function milestoneRequestReviewTestCases() {
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
+    await sleep(200);
     const milestoneReviewerEmails = await emailService.find({
       paginate: false,
       query: {
@@ -457,7 +384,6 @@ function milestoneRequestReviewTestCases() {
     assert.equal(milestoneReviewerEmails[0].message, message);
   });
 }
-
 function milestoneReviewRejectedTestCases() {
   it('email to milestoneOwner, when proposed milestone rejected', async () => {
     const emailService = app.service('emails');
@@ -468,7 +394,7 @@ function milestoneReviewRejectedTestCases() {
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
+    await sleep(200);
     const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
@@ -476,6 +402,31 @@ function milestoneReviewRejectedTestCases() {
         milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_REJECTED,
+      },
+    });
+    assert.isAtLeast(milestoneOwnerEmails.length, 1);
+    assert.equal(milestoneOwnerEmails[0].message, message);
+  });
+}
+
+function milestoneMarkedCompletedTestCases() {
+  it('email to milestoneOwner, when proposed milestone marks as complete', async () => {
+    const emailService = app.service('emails');
+    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
+    const message = `test message - ${new Date()}`;
+    await milestoneMarkedCompleted(app, {
+      milestone,
+      message,
+    });
+    // because creating and sending email is async, we should wait to make sure the email hooks worked
+    await sleep(200);
+    const milestoneOwnerEmails = await emailService.find({
+      paginate: false,
+      query: {
+        recipient: milestoneOwner.email,
+        milestoneId: milestone._id,
+        campaignId: campaign._id,
+        unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
       },
     });
     assert.isAtLeast(milestoneOwnerEmails.length, 1);
@@ -493,7 +444,7 @@ function milestoneCanceledTestCases() {
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
+    await sleep(200);
     const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
@@ -508,141 +459,8 @@ function milestoneCanceledTestCases() {
   });
 }
 
-const milestoneMarkedCompletedTestCases = () => {
-  const message = `test message - ${new Date()}`;
-
-  it('email to milestoneRecipient, when proposed milestone marks as complete', async () => {
-    const emailService = app.service('emails');
-    const { campaign, milestone, milestoneRecipient } = await createMilestoneAndCampaign();
-    await milestoneMarkedCompleted(app, {
-      milestone,
-      message,
-    });
-    await sleep(50);
-
-    const milestoneRecipientEmails = await emailService.find({
-      paginate: false,
-      query: {
-        recipient: milestoneRecipient.email,
-        milestoneId: milestone._id,
-        campaignId: campaign._id,
-        message,
-        unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
-      },
-    });
-    assert.isAtLeast(milestoneRecipientEmails.length, 1);
-  });
-  it('email to milestoneReviewer, when proposed milestone marks as complete', async () => {
-    const emailService = app.service('emails');
-    const { campaign, milestone, milestoneReviewer } = await createMilestoneAndCampaign();
-    await milestoneMarkedCompleted(app, {
-      milestone,
-      message,
-    });
-    await sleep(50);
-
-    const milestoneReviewerEmails = await emailService.find({
-      paginate: false,
-      query: {
-        recipient: milestoneReviewer.email,
-        milestoneId: milestone._id,
-        campaignId: campaign._id,
-        message,
-        unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
-      },
-    });
-    assert.isAtLeast(milestoneReviewerEmails.length, 1);
-  });
-  it('email to campaignOwner, when proposed milestone marks as complete', async () => {
-    const emailService = app.service('emails');
-    const { campaign, milestone, campaignOwner } = await createMilestoneAndCampaign();
-    await milestoneMarkedCompleted(app, {
-      milestone,
-      message,
-    });
-    await sleep(50);
-
-    const campaignOwnerEmails = await emailService.find({
-      paginate: false,
-      query: {
-        recipient: campaignOwner.email,
-        milestoneId: milestone._id,
-        campaignId: campaign._id,
-        message,
-        unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
-      },
-    });
-    assert.isAtLeast(campaignOwnerEmails.length, 1);
-  });
-  it('email to campaignReviewer, when proposed milestone marks as complete', async () => {
-    const emailService = app.service('emails');
-    const { campaign, milestone, campaignReviewer } = await createMilestoneAndCampaign();
-    await milestoneMarkedCompleted(app, {
-      milestone,
-      message,
-    });
-    await sleep(50);
-
-    const campaignReviewerEmails = await emailService.find({
-      paginate: false,
-      query: {
-        recipient: campaignReviewer.email,
-        milestoneId: milestone._id,
-        campaignId: campaign._id,
-        message,
-        unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
-      },
-    });
-    assert.isAtLeast(campaignReviewerEmails.length, 1);
-  });
-  it('email to dacOwner, when proposed milestone marks as complete', async () => {
-    const emailService = app.service('emails');
-    const { campaign, milestone, dacOwner } = await createMilestoneAndCampaign();
-    await milestoneMarkedCompleted(app, {
-      milestone,
-      message,
-    });
-    await sleep(50);
-
-    const dacOwnerEmails = await emailService.find({
-      paginate: false,
-      query: {
-        recipient: dacOwner.email,
-        milestoneId: milestone._id,
-        campaignId: campaign._id,
-        unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
-      },
-    });
-    assert.isAtLeast(dacOwnerEmails.length, 1);
-  });
-
-  it('email to milestoneOwner, when proposed milestone marks as complete', async () => {
-    const emailService = app.service('emails');
-
-    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
-
-    await milestoneMarkedCompleted(app, {
-      milestone,
-      message,
-    });
-    // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
-    const milestoneOwnerEmails = await emailService.find({
-      paginate: false,
-      query: {
-        recipient: milestoneOwner.email,
-        milestoneId: milestone._id,
-        message,
-        campaignId: campaign._id,
-        unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
-      },
-    });
-    assert.isAtLeast(milestoneOwnerEmails.length, 1);
-  });
-};
-
 function donationsCollectedTestCases() {
-  it('email to milestoneRecipient, when colelct milestone donations', async () => {
+  it('email to milestoneOwner, when proposed milestone marks as complete', async () => {
     const emailService = app.service('emails');
     const { campaign, milestone, milestoneRecipient } = await createMilestoneAndCampaign();
     await donationsCollected(app, {
@@ -657,7 +475,7 @@ function donationsCollectedTestCases() {
       },
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
+    await sleep(200);
     const milestoneRecipientEmails = await emailService.find({
       paginate: false,
       query: {
@@ -668,54 +486,6 @@ function donationsCollectedTestCases() {
       },
     });
     assert.isAtLeast(milestoneRecipientEmails.length, 1);
-  });
-}
-function milestoneReceivedDonationTestCases() {
-  it('email to milestoneRecipient, when someone donate/delagate to milestone', async () => {
-    const emailService = app.service('emails');
-    const { campaign, milestone, milestoneRecipient } = await createMilestoneAndCampaign();
-    await milestoneReceivedDonation(app, {
-      milestone,
-      token:{
-        symbol: 'ETH',
-      },
-      amount:"1000000000"
-    });
-    // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
-    const milestoneRecipientEmails = await emailService.find({
-      paginate: false,
-      query: {
-        recipient: milestoneRecipient.email,
-        milestoneId: milestone._id,
-        campaignId: campaign._id,
-        unsubscribeType: EmailSubscribeTypes.DONATION_RECEIVED,
-      },
-    });
-    assert.isAtLeast(milestoneRecipientEmails.length, 1);
-  });
-  it('email to milestoneOwner, when someone donate/delagate to milestone', async () => {
-    const emailService = app.service('emails');
-    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
-    await milestoneReceivedDonation(app, {
-      milestone,
-      token:{
-        symbol: 'ETH',
-      },
-      amount:"1000000000"
-    });
-    // because creating and sending email is async, we should wait to make sure the email hooks worked
-    await sleep(50);
-    const milestoneOwnerEmails = await emailService.find({
-      paginate: false,
-      query: {
-        recipient: milestoneOwner.email,
-        milestoneId: milestone._id,
-        campaignId: campaign._id,
-        unsubscribeType: EmailSubscribeTypes.DONATION_RECEIVED,
-      },
-    });
-    assert.isAtLeast(milestoneOwnerEmails.length, 1);
   });
 }
 
@@ -732,4 +502,3 @@ describe('test milestoneReviewRejected', milestoneReviewRejectedTestCases);
 describe('test milestoneMarkedCompleted', milestoneMarkedCompletedTestCases);
 describe('test milestoneCanceled', milestoneCanceledTestCases);
 describe('test donationsCollected', donationsCollectedTestCases);
-describe('test milestoneReceivedDonation', milestoneReceivedDonationTestCases);
