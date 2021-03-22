@@ -58,7 +58,6 @@ function Donation(app) {
       },
       bridgeTxHash: { type: String },
       bridgeTransactionTime: { type: Date },
-      bridgeEarliestPayTime: { type: Date },
       txHash: { type: String, index: true },
       homeTxHash: { type: String },
       commitTime: { type: Date },
