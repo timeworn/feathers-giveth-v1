@@ -28,7 +28,6 @@ module.exports = app => {
 
   const donationService = app.service('donations');
   const dacService = app.service('dacs');
-  const milestoneService = app.service('milestones');
 
   const newEventTransform = ({ campaign, milestones, pledgeIds }) => {
     const campaignId = campaign._id.toString();
@@ -50,16 +49,14 @@ module.exports = app => {
       const balance = {};
       if (symbol === 'ANY_TOKEN') {
         tokenWhiteList.forEach(t => {
-          balance[t.symbol] = {
-            [TokenKeyType.HOLD]: new BigNumber(0),
-            [TokenKeyType.PAID]: new BigNumber(0),
-          };
+          balance[t.symbol] = {};
+          balance[t.symbol][TokenKeyType.HOLD] = new BigNumber(0);
+          balance[t.symbol][TokenKeyType.PAID] = new BigNumber(0);
         });
       } else {
-        balance[symbol] = {
-          [TokenKeyType.HOLD]: new BigNumber(0),
-          [TokenKeyType.PAID]: new BigNumber(0),
-        };
+        balance[symbol] = {};
+        balance[symbol][TokenKeyType.HOLD] = new BigNumber(0);
+        balance[symbol][TokenKeyType.PAID] = new BigNumber(0);
         if (maxAmount) balance[symbol][TokenKeyType.REQUESTED] = new BigNumber(maxAmount);
       }
 
@@ -105,7 +102,7 @@ module.exports = app => {
 
     let campaignOwner;
 
-    const updateBalance = async ({
+    const updateBalance = ({
       donation,
       isDelegate = false,
       parentId,
@@ -137,17 +134,6 @@ module.exports = app => {
       let updateMilestoneCommitted = false;
       if (ownerType === AdminTypes.MILESTONE) {
         updateMilestoneCommitted = true;
-        // In case milestone balance is not initialized (ProjectAdded event is not processed well! gh giveth/feathers-giveth#437
-        if (!milestonesBalance[ownerTypeId]) {
-          const [milestone] = await milestoneService.find({
-            query: {
-              _id: ownerTypeId,
-              $select: ['maxAmount', 'token'],
-            },
-            paginate: false,
-          });
-          initializeMilestoneBalance(milestone);
-        }
         const balance = milestonesBalance[ownerTypeId];
         if (status === DonationStatus.PAID) {
           balance[symbol][TokenKeyType.HOLD] = balance[symbol][TokenKeyType.HOLD].minus(amount);
@@ -215,7 +201,7 @@ module.exports = app => {
     };
 
     const addPayout = async (stream, donation, createdAt) => {
-      await updateBalance({ donation });
+      updateBalance({ donation });
       const { transactionHash, balance = {}, bridgeInfo = {} } = payouts;
       const {
         amount,
@@ -510,7 +496,7 @@ module.exports = app => {
                   }
                 }
 
-                await updateBalance({ donation, revertedFrom: fromDonation.ownerTypeId });
+                updateBalance({ donation, revertedFrom: fromDonation.ownerTypeId });
               } else if (toPledgeIds) {
                 if (status === DonationStatus.PAID) {
                   await addPayout(this, donation, createdAt);
@@ -528,7 +514,7 @@ module.exports = app => {
                 } = await donationDelegateStatus(parentDonations[0]);
 
                 // Update campaign and milestones balance
-                await updateBalance({ donation, isDelegate, parentId: parentOwnerTypeId });
+                updateBalance({ donation, isDelegate, parentId: parentOwnerTypeId });
 
                 if (actionTakerAddress) {
                   resolvedActionTakerAddress = actionTakerAddress;
