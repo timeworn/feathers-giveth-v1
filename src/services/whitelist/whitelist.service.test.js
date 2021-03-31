@@ -6,7 +6,7 @@ const baseUrl = config.get('givethFathersBaseUrl');
 const relativeUrl = '/whitelist';
 
 function getWhiteListTestCases() {
-  it('should return the value that some of them are in the config', async () => {
+  it('should return the value that some of them are in the config', async function() {
     const response = await request(baseUrl).get(relativeUrl);
 
     assert.equal(response.statusCode, 200);
@@ -14,7 +14,7 @@ function getWhiteListTestCases() {
     expect(response.body.tokenWhitelist).to.deep.equal(config.get('tokenWhitelist'));
   });
 
-  it('should fill activeTokenWhitelist with tokenInfo ', async () => {
+  it('should fill activeTokenWhitelist with tokenInfo ', async function() {
     const response = await request(baseUrl).get(relativeUrl);
     assert.equal(response.statusCode, 200);
     const { activeTokenWhitelist } = response.body;
@@ -28,12 +28,6 @@ function getWhiteListTestCases() {
       assert.isOk(token.address);
       assert.isOk(token.name);
     });
-  });
-  it('should fill minimumPayoutUsdValue ', async () => {
-    const minimumPayoutUsdValue = config.get('minimumPayoutUsdValue');
-    const response = await request(baseUrl).get(relativeUrl);
-    assert.equal(response.statusCode, 200);
-    assert.equal(response.body.minimumPayoutUsdValue, minimumPayoutUsdValue);
   });
 }
 
