@@ -107,6 +107,7 @@ const updateDonationsStatusToBridgeFailed = async ({ app, donation }) => {
 };
 const updateDonationsAndMilestoneStatusToBridgeUnknown = async ({ app, donation }) => {
   const donationService = app.service('donations');
+  let bridgeStatus = DonationBridgeStatus.UNKNOWN;
 
   const timeBetweenCreatedDonationAndNow =
     new Date().getTime() - new Date(donation.createdAt).getTime();
@@ -114,14 +115,15 @@ const updateDonationsAndMilestoneStatusToBridgeUnknown = async ({ app, donation 
   if (timeBetweenCreatedDonationAndNow > expirationThreshold) {
     // If a donations is for more than two months ago and the bridge status is unknown
     // then we set the bridgeStatus Expired to not inquiry again for that donation
-    donationService.patch(donation._id, {
-      bridgeStatus: DonationBridgeStatus.EXPIRED,
-    });
-    logger.info('update donation bridge status', {
-      donationId: donation._id,
-      bridgeStatus: DonationBridgeStatus.EXPIRED,
-    });
+    bridgeStatus = DonationBridgeStatus.EXPIRED;
   }
+  donationService.patch(donation._id, {
+    bridgeStatus,
+  });
+  logger.info('update donation bridge status', {
+    donationId: donation._id,
+    bridgeStatus,
+  });
 };
 
 const inquiryAndUpdateDonationStatusFromBridge = async ({ app, donation }) => {
@@ -141,7 +143,7 @@ const inquiryAndUpdateDonationStatusFromBridge = async ({ app, donation }) => {
       donation,
       payment,
     });
-  } else if (payment && !donation.bridgeEarliestPayTime) {
+  } else if (!donation.bridgeEarliestPayTime) {
     await app.service('donations').patch(donation._id, {
       bridgeEarliestPayTime: new Date(payment.earliestPayTime),
     });
