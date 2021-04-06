@@ -958,9 +958,9 @@ const moneyWentToRecipientWallet = (app, { milestone, token, amount }) => {
     } have been sent to your wallet. It’s time to take action to build a brighter future!
         </p>
 
-        <p>You have these payment(s) in your wallet <strong>
+        <p>You can expect to see these payment(s) to arrive in your wallet <strong>
            ${milestoneRecipient.address}
-        </strong> now.</p>
+        </strong> within 48 - 72 hrs.</p>
       `,
     cta: `See your Milestones`,
     ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
