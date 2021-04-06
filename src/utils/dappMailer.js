@@ -22,12 +22,16 @@ const normalizeAmount = amount => {
 };
 
 const sendEmail = (app, data) => {
+  if (!data.recipient) {
+    return;
+  }
   const emailService = app.service('/emails');
   // add host to subject for development
   if (!app.get('host').includes('beta')) {
     data.subject = `[${app.get('host')}] - ${data.subject}`;
   }
   data.dappUrl = app.get('dappUrl');
+  // eslint-disable-next-line consistent-return
   return emailService.create(data);
 };
 
@@ -949,14 +953,10 @@ const moneyWentToRecipientWallet = (app, { milestone, token, amount }) => {
     text: `
         <p><span ${emailStyle}>Hi ${milestoneRecipient.name || ''}</span></p>
         <p>The funds from your Milestone <strong>${milestoneTitle}</strong>
-        of the amount ${amount} ${
+        of the amount ${normalizeAmount(amount)} ${
       token.symbol
     } have been sent to your wallet. It’s time to take action to build a brighter future!
         </p>
-
-        <p>You can expect to see these payment(s) to arrive in your wallet <strong>
-           ${milestoneRecipient.address}
-        </strong> within 48 - 72 hrs.</p>
       `,
     cta: `See your Milestones`,
     ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
