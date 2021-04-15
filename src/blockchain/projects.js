@@ -690,7 +690,6 @@ const projects = (app, liquidPledging) => {
             ? [campaigns, CampaignStatus.CANCELED]
             : [milestones, MilestoneStatus.CANCELED];
 
-        const transaction = await getTransaction(app, event.transactionHash);
         // update admin entity
         await service.patch(
           pledgeAdmin.typeId,
@@ -698,7 +697,7 @@ const projects = (app, liquidPledging) => {
             status,
             mined: true,
           },
-          { eventTxHash: event.transactionHash, performedByAddress: transaction.from },
+          { eventTxHash: event.transactionHash },
         );
 
         if (pledgeAdmin.type === AdminTypes.CAMPAIGN) {
