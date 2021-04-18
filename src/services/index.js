@@ -1,7 +1,6 @@
 const challenges = require('./challenges/challenges.service');
 const pledgeAdmins = require('./pledgeAdmins/pledgeAdmins.service');
 const events = require('./events/events.service');
-const homePaymentsTransactions = require('./homePaymentsTransactions/homePaymentsTransactions.service');
 const emails = require('./emails/emails.service');
 const subscription = require('./subscriptions/subscription.service');
 
@@ -35,7 +34,6 @@ module.exports = function configure() {
   app.configure(gasprice);
   app.configure(conversionRates);
   app.configure(events);
-  app.configure(homePaymentsTransactions);
   app.configure(emails);
   app.configure(subscription);
   app.configure(conversations);

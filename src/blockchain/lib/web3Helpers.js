@@ -159,22 +159,16 @@ const txListeners = {};
  * @param {object} app application instance
  * @param {string} hash the hash to fetch the transaction of
  * @param {boolean} isHome get transaction of home network
- * @param {boolean} fetchGasInfo get transaction gasUsed and gasPrice info
  */
-const getTransaction = async (app, hash, isHome = false, fetchGasInfo = false) => {
+const getTransaction = async (app, hash, isHome = false) => {
   if (!hash) {
     throw new errors.NotFound(`Hash value cannot be undefined`);
   }
   const Transaction = app.get('transactionsModel');
   const query = { hash, isHome };
-  const result = await Transaction.findOne(query);
-  if (result) {
-    if (fetchGasInfo && (!result.gasPrice || !result.gasUsed)) {
-      // Let's clean it and create again
-      await Transaction.findByIdAndDelete(result.id);
-    } else {
-      return result;
-    }
+  const result = await Transaction.find(query).exec();
+  if (result.length > 0) {
+    return result[0];
   }
 
   // if we are already fetching the transaction, don't do it twice
@@ -204,18 +198,11 @@ const getTransaction = async (app, hash, isHome = false, fetchGasInfo = false) =
     isHome: !!isHome,
   };
 
-  // Transaction is mined
   if (blockNumber) {
     model.blockNumber = blockNumber;
 
     const { timestamp } = await web3.eth.getBlock(blockNumber);
     model.timestamp = new Date(timestamp * 1000);
-
-    if (fetchGasInfo) {
-      const receipt = await web3.eth.getTransactionReceipt(hash);
-      model.gasPrice = tx.gasPrice;
-      model.gasUsed = receipt.gasUsed;
-    }
 
     const transaction = new Transaction(model);
     await transaction.save();
