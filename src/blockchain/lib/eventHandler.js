@@ -49,9 +49,6 @@ const eventHandler = app => {
         ConfirmPayment: undefined,
         CancelPayment: undefined,
 
-        // giveth bridge events
-        PaymentAuthorized: payments.paymentAuthorized,
-
         // lpp-capped-milestone events
         MilestoneCompleteRequested: milestones.reviewRequested,
         MilestoneCompleteRequestRejected: milestones.rejected,

@@ -35,7 +35,6 @@ function createModel(app) {
       },
       processingError: { type: String },
       confirmations: { type: Number, require: true },
-      isHomeEvent: { type: Boolean, default: false },
     },
     {
       timestamps: true,
