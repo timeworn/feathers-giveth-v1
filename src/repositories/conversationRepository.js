@@ -18,18 +18,6 @@ const findSimilarDelegatedConversation = (
   );
 };
 
-const findSimilarPayoutConversation = (app, { milestoneId, txHash }, projection = {}) => {
-  const conversationModel = app.service('conversations').Model;
-  return conversationModel.findOne(
-    {
-      milestoneId,
-      txHash,
-      messageContext: CONVERSATION_MESSAGE_CONTEXT.PAYOUT,
-    },
-    projection,
-  );
-};
-
 const updateConversationPayments = (app, { conversationId, payments }) => {
   const conversationModel = app.service('conversations').Model;
   return conversationModel.findOneAndUpdate(
@@ -46,5 +34,4 @@ const updateConversationPayments = (app, { conversationId, payments }) => {
 module.exports = {
   findSimilarDelegatedConversation,
   updateConversationPayments,
-  findSimilarPayoutConversation,
 };
