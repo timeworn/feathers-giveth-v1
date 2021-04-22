@@ -56,9 +56,8 @@ function Donation(app) {
         type: String,
         enum: Object.values(DonationBridgeStatus),
       },
-      bridgePaymentAuthorizedTxHash: { type: String }, // The first transaction made by bridge on payment
-      bridgePaymentExecutedTxHash: { type: String }, // The second one which transfer money to user wallet
-      bridgePaymentExecutedTime: { type: Date },
+      bridgeTxHash: { type: String },
+      bridgeTransactionTime: { type: Date },
       bridgeEarliestPayTime: { type: Date },
       txHash: { type: String, index: true },
       homeTxHash: { type: String },

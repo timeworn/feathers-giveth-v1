@@ -81,7 +81,6 @@ function Milestone(app) {
       messageContext: { type: String },
       tokenAddress: { type: String, required: true },
       projectAddedAt: { type: Date }, // Store the time milestone is accepted or added by campaign owner
-      gasPaidUsdValue: { type: Number, default: 0 },
     },
     {
       timestamps: true,

@@ -98,27 +98,25 @@ const updateDonationsStatusToBridgePaid = async ({ app, donation, payment }) => 
     : { timestamp: new Date(earliestPayTime) };
   await app.service('donations').patch(donation._id, {
     bridgeStatus,
-    bridgePaymentExecutedTxHash: paymentTransactionHash,
+    bridgeTxHash: paymentTransactionHash,
     bridgeEarliestPayTime: new Date(earliestPayTime),
-    bridgePaymentExecutedTime: timestamp,
+    bridgeTransactionTime: timestamp,
   });
   const milestone = await app.service('milestones').get(donation.ownerTypeId);
-  await Promise.all([
-    createPayoutConversation({
-      app,
-      milestone,
-      donation,
-      timestamp,
-      token,
-      amount,
-      txHash: paymentTransactionHash,
-    }),
-    moneyWentToRecipientWallet(app, {
-      milestone,
-      token: donation.token,
-      amount: donation.amount,
-    }),
-  ]);
+  createPayoutConversation({
+    app,
+    milestone,
+    donation,
+    timestamp,
+    token,
+    amount,
+    txHash: paymentTransactionHash,
+  });
+  moneyWentToRecipientWallet(app, {
+    milestone,
+    token: donation.token,
+    amount: donation.amount,
+  });
   logger.info('update donation bridge status', {
     donationId: donation._id,
     bridgeStatus,
