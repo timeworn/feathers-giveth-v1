@@ -184,8 +184,7 @@ const handleMilestoneConversationAndEmail = () => async context => {
       milestone: result,
       user,
     });
-  } else if (data.status === ARCHIVED && prevStatus !== ARCHIVED) {
-    // Completed and InProgress milestones could become archived
+  } else if (data.status === ARCHIVED && prevStatus === IN_PROGRESS) {
     _createConversation(CONVERSATION_MESSAGE_CONTEXT.ARCHIVED);
   }
 };
