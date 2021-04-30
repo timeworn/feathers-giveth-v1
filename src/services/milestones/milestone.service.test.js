@@ -39,16 +39,6 @@ function postMilestoneTestCases() {
     assert.equal(response.statusCode, 201);
     assert.equal(response.body.ownerAddress, SAMPLE_DATA.USER_ADDRESS);
   });
-  it('should create milestone successfully including category', async () => {
-    const category = 'expense';
-    const response = await request(baseUrl)
-      .post(relativeUrl)
-      .send({ ...SAMPLE_DATA.createMilestoneData(), category })
-      .set({ Authorization: getJwt() });
-    assert.equal(response.statusCode, 201);
-    assert.equal(response.body.ownerAddress, SAMPLE_DATA.USER_ADDRESS);
-    assert.equal(response.body.category, category);
-  });
 
   it('should create milestone , token must be returned', async function() {
     // In milestone hooks based on token.symbol set a tokenSymbol field
