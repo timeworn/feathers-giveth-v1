@@ -97,7 +97,7 @@ const handleMilestoneConversationAndEmail = () => async context => {
     ARCHIVED,
   } = MilestoneStatus;
   const { status, _id, prevStatus, message, mined } = result;
-  logger.info('handleMilestoneConversationAndEmail() called', {
+  logger.info('sendNotification', {
     milestoneId: _id,
     eventTxHash,
     status,

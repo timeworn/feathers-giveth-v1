@@ -25,6 +25,13 @@ const MilestoneTypes = {
   LPMilestone: 'LPMilestone',
 };
 
+const MilestoneFormTypes = {
+  BOUNTY: 'bounty',
+  PAYMENT: 'payment',
+  EXPENSE: 'expense',
+  Milestone: 'milestone',
+};
+
 function Milestone(app) {
   const mongooseClient = app.get('mongooseClient');
   const { Schema } = mongooseClient;
@@ -50,6 +57,10 @@ function Milestone(app) {
         type: String,
         require: true,
         enum: Object.values(MilestoneStatus),
+      },
+      formType: {
+        type: String,
+        enum: Object.values(MilestoneFormTypes),
       },
       items: [Item],
       conversionRateTimestamp: { type: Date },
@@ -87,13 +98,6 @@ function Milestone(app) {
       timestamps: true,
     },
   );
-  milestone.index({
-    title: 'text',
-    description: 'text',
-    ownerAddress: 'text',
-    recipientAddress: 'text',
-    reviewerAddress: 'text',
-  });
   milestone.index({ campaignId: 1, status: 1, projectAddedAt: 1 });
   milestone.index({ createdAt: 1, ownerAddress: 1, reviewerAddress: 1, recipientAddress: 1 });
   milestone.index({ status: 1, fullyFunded: 1, createdAt: 1 });

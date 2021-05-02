@@ -3,8 +3,7 @@ const { hexToNumberString } = require('web3-utils');
 const BigNumber = require('bignumber.js');
 const { getTokenByAddress } = require('../utils/tokenHelper');
 const { getTransaction } = require('./lib/web3Helpers');
-// const { moneyWentToRecipientWallet } = require('../utils/dappMailer');
-const { createPayoutConversation } = require('../utils/conversationCreator');
+
 /**
  * object factory to keep feathers cache in sync with LPVault payments contracts
  */
@@ -62,31 +61,22 @@ const payments = app => ({
     });
 
     if (result !== 0) {
-      logger.error('Attempt to process PaymentAuthorized event that has already processed', {
-        result,
-        event,
-      });
+      logger.error('Attempt to process PaymentAuthorized event that has already processed', event);
       return;
     }
 
-    const {
-      idPayment,
-      recipient,
-      amount,
-      token: tokenAddress,
-      reference: donationTxHash,
-    } = returnValues;
+    const { idPayment, recipient, amount, token: tokenAddress, reference } = returnValues;
 
     const donationModel = app.service('donations').Model;
     const milestoneModel = app.service('milestones').Model;
 
     const [{ timestamp, gasPrice, gasUsed, from }, donation] = await Promise.all([
       getTransaction(app, transactionHash, true, true),
-      donationModel.findOne({ txHash: donationTxHash }, ['ownerTypeId']),
+      donationModel.findOne({ txHash: reference }, ['ownerTypeId']),
     ]);
 
     if (!donation) {
-      throw new Error(`No donation found with reference: ${donationTxHash}`);
+      throw new Error(`No donation found with reference: ${reference}`);
     }
 
     const { ownerTypeId: milestoneId } = donation;
@@ -122,7 +112,6 @@ const payments = app => ({
       recipientAddress: recipient,
       milestoneId,
       campaignId,
-      donationTxHash,
       transactionFee,
       timestamp,
       from,
@@ -141,6 +130,7 @@ const payments = app => ({
     if (event.event !== 'PaymentExecuted') {
       throw new Error('paymentExecuted only handles PaymentExecuted events');
     }
+
     const { transactionHash, returnValues } = event;
     const tx = await getTransaction(app, transactionHash, true, true);
     const { timestamp, gasPrice, gasUsed, from } = tx;
@@ -149,10 +139,6 @@ const payments = app => ({
 
     // If gas is not paid by Giveth we can skip
     if (!givethAccounts.includes(from)) {
-      logger.error('The from of transaction is not a giveth account', {
-        from,
-        givethAccounts,
-      });
       return;
     }
 
@@ -167,9 +153,7 @@ const payments = app => ({
     });
 
     if (result !== 0) {
-      logger.error('Attempt to process PaymentExecuted event that has already processed', {
-        event,
-      });
+      logger.error('Attempt to process PaymentExecuted event that has already processed', event);
       return;
     }
 
@@ -210,7 +194,7 @@ const payments = app => ({
       throw new Error(`No token found for address: ${tokenAddress}`);
     }
 
-    const { milestoneId, campaignId, donationTxHash } = paymentAuthorizedTransaction;
+    const { milestoneId, campaignId } = paymentAuthorizedTransaction;
 
     await service.create({
       hash: transactionHash,
@@ -220,33 +204,12 @@ const payments = app => ({
       milestoneId,
       campaignId,
       transactionFee,
-      donationTxHash,
       timestamp,
       from,
       payments: [{ amount, symbol: token.symbol }],
       paidByGiveth: true,
       paymentId: idPayment,
     });
-    // const milestone = await app.service('milestones').get(milestoneId);
-    const payment = {
-      amount,
-      symbol: token.symbol,
-      decimals: token.decimals,
-    };
-    await createPayoutConversation(app, {
-      milestoneId,
-      performedByAddress: tx.from,
-      timestamp,
-      payment,
-      txHash: transactionHash,
-    });
-
-    // TODO should uncomment this after data synced with PaymentAuthorized and PaymentExecuted on beta server
-    // await moneyWentToRecipientWallet(app, {
-    //   milestone,
-    //   token,
-    //   amount,
-    // });
   },
 });
 
