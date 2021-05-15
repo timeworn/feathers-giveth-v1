@@ -266,7 +266,6 @@ function getApprovedKeysTestCases() {
       'image',
       'token',
       'type',
-      'dacId',
     ];
     const approvedKeys = getApprovedKeys(
       { ...mileStone, status: SAMPLE_DATA.MILESTONE_STATUSES.IN_PROGRESS },
