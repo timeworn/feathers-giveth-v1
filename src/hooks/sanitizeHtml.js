@@ -31,7 +31,7 @@ module.exports = (...fieldNames) => context => {
           allowedAttributes: {
             iframe: ['src', 'allowfullscreen', 'frameborder'],
             a: ['target', 'href'],
-            img: ['src', 'width'],
+            img: ['src'],
           },
           allowedClasses: {
             '*': ['ql-indent-*'],
