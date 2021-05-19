@@ -9,12 +9,7 @@ const to = require('../utils/to');
 const { removeHexPrefix } = require('./lib/web3Helpers');
 const { EventStatus } = require('../models/events.model');
 const { DonationStatus } = require('../models/donations.model');
-const {
-  addEventToQueue,
-  addCreateOrRemoveEventToQueue,
-  initNewEventQueue,
-  initEventHandlerQueue,
-} = require('./lib/eventHandlerQueue');
+const { addEventToQueue, addCreateOrRemoveEventToQueue } = require('./lib/eventHandlerQueue');
 
 /**
  * get the last block that we have gotten logs from
@@ -432,7 +427,7 @@ const watcher = app => {
         transactionHash: 1,
         logIndex: 1,
       },
-      $limit: 50,
+      $limit: 1,
     };
     return eventService.find({ paginate: false, query });
   }
@@ -541,12 +536,7 @@ const watcher = app => {
       }
 
       const unprocessedEvents = await getUnProcessedEvent();
-      // eslint-disable-next-line no-restricted-syntax
-      for (const event of unprocessedEvents) {
-        // we should not use forEach, we should use await to make sure events added to queue by order
-        // eslint-disable-next-line no-await-in-loop
-        await addEventToQueue(app, { event });
-      }
+      unprocessedEvents.forEach(event => addEventToQueue(app, { event }));
     } catch (e) {
       logger.error('error in the processing loop: ', e);
     }
@@ -581,8 +571,7 @@ const watcher = app => {
       subscribeApps();
       subscribeCappedMilestones();
       subscribeVault();
-      initNewEventQueue(app);
-      initEventHandlerQueue(app);
+
       // Start polling
       retrieveAndProcessPastEvents();
 

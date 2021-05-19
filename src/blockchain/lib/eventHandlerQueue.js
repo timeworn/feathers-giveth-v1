@@ -20,6 +20,9 @@ setInterval(async () => {
   });
 }, 1000 * 60 * 2);
 
+let isEventHandlerQueueInitialized = false;
+let isNewEventQueueInitialized = false;
+
 const removeEvent = async (app, event) => {
   const { id, transactionHash } = event;
   const eventService = app.service('events');
@@ -99,6 +102,7 @@ const initNewEventQueue = app => {
       done();
     }
   });
+  isNewEventQueueInitialized = true;
 };
 const initEventHandlerQueue = app => {
   const web3 = app.getWeb3();
@@ -184,9 +188,13 @@ const initEventHandlerQueue = app => {
       done();
     }
   });
+  isEventHandlerQueueInitialized = true;
 };
 
 const addEventToQueue = async (app, { event }) => {
+  if (!isEventHandlerQueueInitialized) {
+    initEventHandlerQueue(app);
+  }
   const requiredConfirmations = app.get('blockchain').requiredConfirmations || 0;
   await app.service('events').patch(event._id, {
     status: EventStatus.PROCESSING,
@@ -197,15 +205,13 @@ const addEventToQueue = async (app, { event }) => {
   });
 };
 const addCreateOrRemoveEventToQueue = (app, { event, remove = false }) => {
+  if (!isNewEventQueueInitialized) {
+    initNewEventQueue(app);
+  }
   return pendingEventQueue.add({
     event,
     remove,
   });
 };
 
-module.exports = {
-  addEventToQueue,
-  addCreateOrRemoveEventToQueue,
-  initNewEventQueue,
-  initEventHandlerQueue,
-};
+module.exports = { addEventToQueue, addCreateOrRemoveEventToQueue };
