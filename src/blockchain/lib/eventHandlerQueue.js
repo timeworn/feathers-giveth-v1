@@ -5,7 +5,7 @@ const Queue = require('bull');
 const paymentsFactory = require('../payments');
 const adminsFactory = require('../admins');
 const pledgesFactory = require('../pledges');
-const milestonesFactory = require('../milestones');
+const milestonesFactory = require('../traces');
 const { EventStatus } = require('../../models/events.model');
 
 const handleEventQueue = new Queue('eventHandler', { redis: config.get('redis') });
@@ -13,12 +13,15 @@ const pendingEventQueue = new Queue('NewEventQueue', { redis: config.get('redis'
 
 setInterval(async () => {
   const eventHandlerQueueCount = await handleEventQueue.count();
-  const NewEventQueueCount = await pendingEventQueue.count();
+  const NewEventQueueCount = await handleEventQueue.count();
   logger.info(`Job queues count:`, {
     eventHandlerQueueCount,
     NewEventQueueCount,
   });
 }, 1000 * 60 * 2);
+
+let isEventHandlerQueueInitialized = false;
+let isNewEventQueueInitialized = false;
 
 const removeEvent = async (app, event) => {
   const { id, transactionHash } = event;
@@ -99,6 +102,7 @@ const initNewEventQueue = app => {
       done();
     }
   });
+  isNewEventQueueInitialized = true;
 };
 const initEventHandlerQueue = app => {
   const web3 = app.getWeb3();
@@ -184,9 +188,13 @@ const initEventHandlerQueue = app => {
       done();
     }
   });
+  isEventHandlerQueueInitialized = true;
 };
 
 const addEventToQueue = async (app, { event }) => {
+  if (!isEventHandlerQueueInitialized) {
+    initEventHandlerQueue(app);
+  }
   const requiredConfirmations = app.get('blockchain').requiredConfirmations || 0;
   await app.service('events').patch(event._id, {
     status: EventStatus.PROCESSING,
@@ -197,15 +205,13 @@ const addEventToQueue = async (app, { event }) => {
   });
 };
 const addCreateOrRemoveEventToQueue = (app, { event, remove = false }) => {
+  if (!isNewEventQueueInitialized) {
+    initNewEventQueue(app);
+  }
   return pendingEventQueue.add({
     event,
     remove,
   });
 };
 
-module.exports = {
-  addEventToQueue,
-  addCreateOrRemoveEventToQueue,
-  initNewEventQueue,
-  initEventHandlerQueue,
-};
+module.exports = { addEventToQueue, addCreateOrRemoveEventToQueue };
