@@ -150,9 +150,18 @@ const payments = app => ({
     const givethAccounts = app.get('givethAccounts');
 
     // If gas is not paid by Giveth we can skip
-    const paidByGiveth = givethAccounts.includes(from);
+    if (!givethAccounts.includes(from)) {
+      logger.error('The from of transaction is not a giveth account', {
+        from,
+        givethAccounts,
+      });
+      return;
+    }
+
     const { idPayment, recipient, amount, token: tokenAddress } = returnValues;
+
     const service = app.service('homePaymentsTransactions');
+
     const result = await service.Model.countDocuments({
       hash: transactionHash,
       event: 'PaymentExecuted',
@@ -217,7 +226,7 @@ const payments = app => ({
       timestamp,
       from,
       payments: [{ amount, symbol: token.symbol }],
-      paidByGiveth,
+      paidByGiveth: true,
       paymentId: idPayment,
     });
     const payment = {
