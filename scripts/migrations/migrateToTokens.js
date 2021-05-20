@@ -53,7 +53,7 @@ const migrateMilestonesToTokens = () => {
         resolve();
       })
       .catch(err => {
-        console.log('migrateMilestonesToTokens > error migrating traces ', err);
+        console.log('migrateMilestonesToTokens > error migrating milestones ', err);
         reject();
       });
   });
@@ -245,7 +245,7 @@ const migrateEthConversions = () => {
 db.once('open', () => {
   console.log('Connected to Mongo');
   console.log(
-    'Migration: adding token properties to dacs, campaigns, traces, donations and ethconversions',
+    'Migration: adding token properties to dacs, campaigns, milestones, donations and ethconversions',
   );
 
   Promise.all([

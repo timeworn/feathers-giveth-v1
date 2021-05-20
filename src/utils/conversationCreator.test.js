@@ -31,7 +31,7 @@ function createDelegatedConversationTestCases() {
   it('should update existing conversation payments instead of creating new one', async () => {
     const currencySymbol = 'ETH';
     const txHash = generateRandomTxHash();
-    const traceId = SAMPLE_DATA.TRACE_ID;
+    const milestoneId = SAMPLE_DATA.MILESTONE_ID;
     const firstPayment = {
       symbol: currencySymbol,
       decimals: 6,
@@ -43,7 +43,7 @@ function createDelegatedConversationTestCases() {
       amount: '200000000000000000',
     };
     const payload = {
-      traceId,
+      milestoneId,
       ownerAddress: SAMPLE_DATA.USER_ADDRESS,
       performedByRole: 'Milestone owner',
       messageContext: 'delegated',
@@ -57,17 +57,17 @@ function createDelegatedConversationTestCases() {
     const { body: parentDonation } = await request(baseUrl)
       .post('/donations')
       .set({ Authorization: getJwt() })
-      .send({ ...SAMPLE_DATA.DONATION_DATA, ownerTypeId: traceId });
+      .send({ ...SAMPLE_DATA.DONATION_DATA, ownerTypeId: milestoneId });
     const { body: donation } = await request(baseUrl)
       .post('/donations')
       .set({ Authorization: getJwt() })
       .send({
         ...SAMPLE_DATA.DONATION_DATA,
-        ownerTypeId: traceId,
+        ownerTypeId: milestoneId,
         parentDonations: [parentDonation],
       });
     await createDelegatedConversation(app, {
-      traceId,
+      milestoneId,
       donationId: donation._id,
       txHash,
       payment: secondPayment,
@@ -77,7 +77,7 @@ function createDelegatedConversationTestCases() {
     const conversations = await app.service('conversations').find({
       paginate: false,
       query: {
-        traceId,
+        milestoneId,
         txHash,
       },
     });
@@ -87,14 +87,14 @@ function createDelegatedConversationTestCases() {
   it('should create new conversation while txHash is different', async () => {
     const currencySymbol = 'ETH';
     const txHash = generateRandomTxHash();
-    const traceId = SAMPLE_DATA.TRACE_ID;
+    const milestoneId = SAMPLE_DATA.MILESTONE_ID;
     const firstPayment = {
       symbol: currencySymbol,
       decimals: 6,
       amount: '100000000000000000',
     };
     const payload = {
-      traceId,
+      milestoneId,
       ownerAddress: SAMPLE_DATA.USER_ADDRESS,
       performedByRole: 'Milestone owner',
       messageContext: 'delegated',
@@ -108,13 +108,13 @@ function createDelegatedConversationTestCases() {
     const { body: parentDonation } = await request(baseUrl)
       .post('/donations')
       .set({ Authorization: getJwt() })
-      .send({ ...SAMPLE_DATA.DONATION_DATA, ownerTypeId: traceId });
+      .send({ ...SAMPLE_DATA.DONATION_DATA, ownerTypeId: milestoneId });
     const { body: donation } = await request(baseUrl)
       .post('/donations')
       .set({ Authorization: getJwt() })
       .send({
         ...SAMPLE_DATA.DONATION_DATA,
-        ownerTypeId: traceId,
+        ownerTypeId: milestoneId,
         parentDonations: [parentDonation],
       });
     const secondPayment = {
@@ -124,7 +124,7 @@ function createDelegatedConversationTestCases() {
     };
     const secondTxHash = generateRandomTxHash();
     await createDelegatedConversation(app, {
-      traceId,
+      milestoneId,
       donationId: donation._id,
       txHash: secondTxHash,
       payment: secondPayment,
@@ -134,7 +134,7 @@ function createDelegatedConversationTestCases() {
     const conversations = await app.service('conversations').find({
       paginate: false,
       query: {
-        traceId,
+        milestoneId,
         txHash: secondTxHash,
       },
     });
@@ -146,8 +146,8 @@ function createPayoutConversationTestCases() {
   it('should update existing conversation payments instead of creating new one', async () => {
     const currencySymbol = 'ETH';
     const txHash = generateRandomTxHash();
-    const traceId = SAMPLE_DATA.TRACE_ID;
-    const trace = await app.service('traces').get(traceId);
+    const milestoneId = SAMPLE_DATA.MILESTONE_ID;
+    const milestone = await app.service('milestones').get(milestoneId);
     const firstPayment = {
       symbol: currencySymbol,
       decimals: 6,
@@ -159,7 +159,7 @@ function createPayoutConversationTestCases() {
       amount: '200000000000000000',
     };
     const payload = {
-      traceId,
+      milestoneId,
       ownerAddress: SAMPLE_DATA.USER_ADDRESS,
       performedByRole: 'Milestone owner',
       messageContext: 'payout',
@@ -176,20 +176,20 @@ function createPayoutConversationTestCases() {
       .set({ Authorization: getJwt() })
       .send({
         ...SAMPLE_DATA.DONATION_DATA,
-        ownerTypeId: traceId,
+        ownerTypeId: milestoneId,
       });
     await createPayoutConversation(app, {
-      traceId,
+      milestoneId,
       donationId: donation._id,
       txHash,
       payment: secondPayment,
       timestamp: new Date(),
-      performedByAddress: trace.recipientAddress,
+      performedByAddress: milestone.recipientAddress,
     });
     const conversations = await app.service('conversations').find({
       paginate: false,
       query: {
-        traceId,
+        milestoneId,
         txHash,
       },
     });
@@ -199,15 +199,15 @@ function createPayoutConversationTestCases() {
   it('should create new conversation while txHash is different', async () => {
     const currencySymbol = 'ETH';
     const txHash = generateRandomTxHash();
-    const traceId = SAMPLE_DATA.TRACE_ID;
-    const trace = await app.service('traces').get(traceId);
+    const milestoneId = SAMPLE_DATA.MILESTONE_ID;
+    const milestone = await app.service('milestones').get(milestoneId);
     const firstPayment = {
       symbol: currencySymbol,
       decimals: 6,
       amount: '100000000000000000',
     };
     const payload = {
-      traceId,
+      milestoneId,
       ownerAddress: SAMPLE_DATA.USER_ADDRESS,
       performedByRole: 'Milestone owner',
       messageContext: 'delegated',
@@ -224,7 +224,7 @@ function createPayoutConversationTestCases() {
       .set({ Authorization: getJwt() })
       .send({
         ...SAMPLE_DATA.DONATION_DATA,
-        ownerTypeId: traceId,
+        ownerTypeId: milestoneId,
       });
     const secondPayment = {
       symbol: currencySymbol,
@@ -233,24 +233,24 @@ function createPayoutConversationTestCases() {
     };
     const secondTxHash = generateRandomTxHash();
     const result = await createPayoutConversation(app, {
-      traceId,
+      milestoneId,
       donationId: donation._id,
       txHash: secondTxHash,
       payment: secondPayment,
       timestamp: new Date(),
-      performedByAddress: trace.recipientAddress,
+      performedByAddress: milestone.recipientAddress,
     });
     assert.ok(result);
     const conversations = await app.service('conversations').find({
       paginate: false,
       query: {
-        traceId,
+        milestoneId,
         txHash: secondTxHash,
       },
     });
     assert.equal(conversations.length, 1);
     assert.equal(conversations[0].payments[0].amount, secondPayment.amount);
-    assert.equal(conversations[0].ownerAddress, trace.recipientAddress);
+    assert.equal(conversations[0].ownerAddress, milestone.recipientAddress);
   });
 }
 
@@ -258,7 +258,7 @@ function createDonatedConversationTestCases() {
   it('should create a donated conversation', async () => {
     const currencySymbol = 'ETH';
     const txHash = generateRandomTxHash();
-    const traceId = SAMPLE_DATA.TRACE_ID;
+    const milestoneId = SAMPLE_DATA.MILESTONE_ID;
     const payment = {
       symbol: currencySymbol,
       decimals: 6,
@@ -270,10 +270,10 @@ function createDonatedConversationTestCases() {
       .set({ Authorization: getJwt() })
       .send({
         ...SAMPLE_DATA.DONATION_DATA,
-        ownerTypeId: traceId,
+        ownerTypeId: milestoneId,
       });
     const conversation = await createDonatedConversation(app, {
-      traceId,
+      milestoneId,
       donationId: donation._id,
       homeTxHash: txHash,
       payment,
@@ -285,7 +285,7 @@ function createDonatedConversationTestCases() {
     const conversations = await app.service('conversations').find({
       paginate: false,
       query: {
-        traceId,
+        milestoneId,
         txHash,
         messageContext: CONVERSATION_MESSAGE_CONTEXT.DONATED,
       },
@@ -296,18 +296,18 @@ function createDonatedConversationTestCases() {
 function createRecipientChangedConversationTestCases() {
   it('should create a recipientChanged conversation', async () => {
     const txHash = generateRandomTxHash();
-    const traceId = SAMPLE_DATA.TRACE_ID;
+    const milestoneId = SAMPLE_DATA.MILESTONE_ID;
     const { body: donation } = await request(baseUrl)
       .post('/donations')
       .set({ Authorization: getJwt() })
       .send({
         ...SAMPLE_DATA.DONATION_DATA,
-        ownerTypeId: traceId,
+        ownerTypeId: milestoneId,
       });
     const recipientAddress = generateRandomEtheriumAddress();
     const from = generateRandomEtheriumAddress();
     const conversation = await createRecipientChangedConversation(app, {
-      traceId,
+      milestoneId,
       donationId: donation._id,
       newRecipientAddress: recipientAddress,
       from,

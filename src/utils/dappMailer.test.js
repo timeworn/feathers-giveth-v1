@@ -4,17 +4,17 @@ const { assert } = require('chai');
 const {
   capitalizeDelegateType,
   normalizeAmount,
-  generateTraceCtaRelativeUrl,
-  proposedTraceEdited,
-  traceProposed,
-  proposedTraceAccepted,
-  proposedTraceRejected,
-  traceRequestReview,
-  traceReviewRejected,
-  traceMarkedCompleted,
-  traceCancelled,
+  generateMilestoneCtaRelativeUrl,
+  proposedMilestoneEdited,
+  milestoneProposed,
+  proposedMilestoneAccepted,
+  proposedMilestoneRejected,
+  milestoneRequestReview,
+  milestoneReviewRejected,
+  milestoneMarkedCompleted,
+  milestoneCanceled,
   donationsCollected,
-  traceReceivedDonation,
+  milestoneReceivedDonation,
   moneyWentToRecipientWallet,
 } = require('./dappMailer');
 const { EmailSubscribeTypes } = require('../models/emails.model');
@@ -53,9 +53,9 @@ function capitalizeDelegateTypeTestCases() {
     const result = capitalizeDelegateType('dac');
     assert.equal(result, 'DAC');
   });
-  it('should convert trace to Trace', () => {
-    const result = capitalizeDelegateType('trace');
-    assert.equal(result, 'Trace');
+  it('should convert milestone to Milestone', () => {
+    const result = capitalizeDelegateType('milestone');
+    assert.equal(result, 'Milestone');
   });
   it('should convert campaign to Campaign', () => {
     const result = capitalizeDelegateType('campaign');
@@ -63,29 +63,29 @@ function capitalizeDelegateTypeTestCases() {
   });
 }
 
-function generateTraceCtaRelativeUrlTestCases() {
-  it('should generate traceUrl by campaignId and traceId', () => {
-    const traceId = generateRandomMongoId();
+function generateMilestoneCtaRelativeUrlTestCases() {
+  it('should generate milestoneUrl by campaignId and milestoneId', () => {
+    const milestoneId = generateRandomMongoId();
     const campaignId = generateRandomMongoId();
-    const url = generateTraceCtaRelativeUrl(campaignId, traceId);
-    assert.equal(url, `/campaigns/${campaignId}/traces/${traceId}`);
+    const url = generateMilestoneCtaRelativeUrl(campaignId, milestoneId);
+    assert.equal(url, `/campaigns/${campaignId}/milestones/${milestoneId}`);
   });
 }
 
-const createTraceAndCampaign = async () => {
+const createMilestoneAndCampaign = async () => {
   const userService = app.service('users');
-  const traceOwner = await userService.create({
+  const milestoneOwner = await userService.create({
     address: generateRandomEtheriumAddress(),
-    email: `${new Date().getTime()}-traceOwner@test.giveth`,
+    email: `${new Date().getTime()}-milestoneOwner@test.giveth`,
     isAdmin: true,
-    name: `traceOwner ${new Date()}`,
+    name: `milestoneOwner ${new Date()}`,
   });
-  const traceReviewer = await userService.create({
+  const milestoneReviewer = await userService.create({
     address: generateRandomEtheriumAddress(),
-    email: `${new Date().getTime()}-traceReviewer@test.giveth`,
+    email: `${new Date().getTime()}-milestoneReviewer@test.giveth`,
     isAdmin: true,
     isReviewer: true,
-    name: `traceReviewer ${new Date()}`,
+    name: `milestoneReviewer ${new Date()}`,
   });
   const campaignOwner = await userService.create({
     address: generateRandomEtheriumAddress(),
@@ -117,10 +117,10 @@ const createTraceAndCampaign = async () => {
     isAdmin: true,
     name: `campaignReviewer ${new Date()}`,
   });
-  const traceRecipient = await userService.create({
+  const milestoneRecipient = await userService.create({
     address: generateRandomEtheriumAddress(),
-    email: `${new Date().getTime()}-traceRecipient@test.giveth`,
-    name: `traceRecipient ${new Date()}`,
+    email: `${new Date().getTime()}-milestoneRecipient@test.giveth`,
+    name: `milestoneRecipient ${new Date()}`,
   });
 
   const campaign = (
@@ -133,18 +133,18 @@ const createTraceAndCampaign = async () => {
       })
       .set({ Authorization: getJwt(campaignOwner.address) })
   ).body;
-  const trace = (
+  const milestone = (
     await request(baseUrl)
-      .post('/traces')
+      .post('/milestones')
       .send({
-        ...SAMPLE_DATA.createTraceData(),
+        ...SAMPLE_DATA.createMilestoneData(),
         campaignId: campaign._id,
-        ownerAddress: traceOwner.address,
-        reviewerAddress: traceReviewer.address,
-        recipientAddress: traceRecipient.address,
-        // owner: traceOwner,
+        ownerAddress: milestoneOwner.address,
+        reviewerAddress: milestoneReviewer.address,
+        recipientAddress: milestoneRecipient.address,
+        // owner: milestoneOwner,
       })
-      .set({ Authorization: getJwt(traceOwner.address) })
+      .set({ Authorization: getJwt(milestoneOwner.address) })
   ).body;
 
   const dac = (
@@ -179,92 +179,104 @@ const createTraceAndCampaign = async () => {
     .save();
 
   return {
-    trace,
+    milestone,
     campaign,
-    traceOwner,
+    milestoneOwner,
     campaignOwner,
     campaignReviewer,
-    traceReviewer,
-    traceRecipient,
+    milestoneReviewer,
+    milestoneRecipient,
     dacOwner,
     dacSubscriber,
     campaignSubscriber,
   };
 };
 
-function proposedTraceEditedTestCases() {
-  it('email to trace owner and campaign owner after editing proposed trace', async () => {
+function proposedMilestoneEditedTestCases() {
+  it('email to milestone owner and campaign owner after editing proposed milestone', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceOwner, campaignOwner } = await createTraceAndCampaign();
-    await proposedTraceEdited(app, {
-      trace,
-      user: traceOwner,
+    const {
+      campaign,
+      milestone,
+      milestoneOwner,
+      campaignOwner,
+    } = await createMilestoneAndCampaign();
+    await proposedMilestoneEdited(app, {
+      milestone,
+      user: milestoneOwner,
     });
 
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceOwnerEmails = await emailService.find({
+    const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceOwner.email,
-        traceId: trace._id,
+        recipient: milestoneOwner.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
       },
     });
-    assert.isAtLeast(traceOwnerEmails.length, 1);
+    assert.isAtLeast(milestoneOwnerEmails.length, 1);
 
     // in this case should not send email to campaign manager
     const campaignOwnerEmails = await emailService.find({
       paginate: false,
       query: {
         recipient: campaignOwner.email,
-        traceId: trace._id,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
       },
     });
     assert.equal(campaignOwnerEmails.length, 0);
   });
-  it('email to trace owner and campaign owner after campaign owners edits proposed trace', async () => {
+  it('email to milestone owner and campaign owner after campaign owners edits proposed milestone', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceOwner, campaignOwner } = await createTraceAndCampaign(app);
-    await proposedTraceEdited(app, {
-      trace,
+    const { campaign, milestone, milestoneOwner, campaignOwner } = await createMilestoneAndCampaign(
+      app,
+    );
+    await proposedMilestoneEdited(app, {
+      milestone,
       user: campaignOwner,
     });
 
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceOwnerEmails = await emailService.find({
+    const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceOwner.email,
-        traceId: trace._id,
+        recipient: milestoneOwner.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
       },
     });
-    assert.isAtLeast(traceOwnerEmails.length, 1);
+    assert.isAtLeast(milestoneOwnerEmails.length, 1);
 
     // in this case should not send email to campaign manager
     const campaignOwnerEmails = await emailService.find({
       paginate: false,
       query: {
         recipient: campaignOwner.email,
-        traceId: trace._id,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
       },
     });
     assert.isAtLeast(campaignOwnerEmails.length, 1);
   });
-  it('email to campaign owner after trace reviewer edits proposed trace', async () => {
+  it('email to campaign owner after milestone reviewer edits proposed milestone', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceReviewer, campaignOwner } = await createTraceAndCampaign();
-    await proposedTraceEdited(app, {
-      trace,
-      user: traceReviewer,
+    const {
+      campaign,
+      milestone,
+      milestoneReviewer,
+      campaignOwner,
+    } = await createMilestoneAndCampaign();
+    await proposedMilestoneEdited(app, {
+      milestone,
+      user: milestoneReviewer,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
@@ -273,7 +285,7 @@ function proposedTraceEditedTestCases() {
       paginate: false,
       query: {
         recipient: campaignOwner.email,
-        traceId: trace._id,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
       },
@@ -282,12 +294,12 @@ function proposedTraceEditedTestCases() {
   });
 }
 
-function traceProposedTestCases() {
-  it('email to campaignOwner after trace proposed', async () => {
+function milestoneProposedTestCases() {
+  it('email to campaignOwner after milestone proposed', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, campaignOwner } = await createTraceAndCampaign();
-    await traceProposed(app, {
-      trace,
+    const { campaign, milestone, campaignOwner } = await createMilestoneAndCampaign();
+    await milestoneProposed(app, {
+      milestone,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
@@ -295,85 +307,85 @@ function traceProposedTestCases() {
       paginate: false,
       query: {
         recipient: campaignOwner.email,
-        traceId: trace._id,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
       },
     });
     assert.isAtLeast(campaignOwnerEmails.length, 1);
   });
-  it('email to  traceReviewer after trace proposed', async () => {
+  it('email to  milestoneReviewer after milestone proposed', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceReviewer } = await createTraceAndCampaign();
-    await traceProposed(app, {
-      trace,
+    const { campaign, milestone, milestoneReviewer } = await createMilestoneAndCampaign();
+    await milestoneProposed(app, {
+      milestone,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
 
-    const traceReviewerEmails = await emailService.find({
+    const milestoneReviewerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceReviewer.email,
-        traceId: trace._id,
+        recipient: milestoneReviewer.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
       },
     });
-    assert.isAtLeast(traceReviewerEmails.length, 1);
+    assert.isAtLeast(milestoneReviewerEmails.length, 1);
   });
-  it('email to traceOwner after trace proposed', async () => {
+  it('email to milestoneOwner after milestone proposed', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceOwner } = await createTraceAndCampaign();
-    await traceProposed(app, {
-      trace,
+    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
+    await milestoneProposed(app, {
+      milestone,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
 
-    const traceOwnerEmails = await emailService.find({
+    const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceOwner.email,
-        traceId: trace._id,
+        recipient: milestoneOwner.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
       },
     });
-    assert.isAtLeast(traceOwnerEmails.length, 1);
+    assert.isAtLeast(milestoneOwnerEmails.length, 1);
   });
 }
 
-function proposedTraceAcceptedTestCases() {
-  it('email to traceOwner, after proposed Trace Accepted', async () => {
+function proposedMilestoneAcceptedTestCases() {
+  it('email to milestoneOwner, after proposed Milestone Accepted', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceOwner } = await createTraceAndCampaign();
+    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
     const message = `test message - ${new Date()}`;
-    await proposedTraceAccepted(app, {
-      trace,
+    await proposedMilestoneAccepted(app, {
+      milestone,
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
 
-    const traceOwnerEmails = await emailService.find({
+    const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceOwner.email,
-        traceId: trace._id,
+        recipient: milestoneOwner.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_ACCEPTED,
       },
     });
-    assert.isAtLeast(traceOwnerEmails.length, 1);
-    assert.equal(traceOwnerEmails[0].message, message);
+    assert.isAtLeast(milestoneOwnerEmails.length, 1);
+    assert.equal(milestoneOwnerEmails[0].message, message);
   });
-  it('email to traceRecipient, after proposed Trace Accepted', async () => {
+  it('email to milestoneRecipient, after proposed Milestone Accepted', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceRecipient } = await createTraceAndCampaign();
+    const { campaign, milestone, milestoneRecipient } = await createMilestoneAndCampaign();
     const message = `test message - ${new Date()}`;
-    await proposedTraceAccepted(app, {
-      trace,
+    await proposedMilestoneAccepted(app, {
+      milestone,
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
@@ -381,8 +393,8 @@ function proposedTraceAcceptedTestCases() {
     const recipientEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceRecipient.email,
-        traceId: trace._id,
+        recipient: milestoneRecipient.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_CREATED,
       },
@@ -390,12 +402,12 @@ function proposedTraceAcceptedTestCases() {
     assert.isAtLeast(recipientEmails.length, 1);
     assert.equal(recipientEmails[0].message, message);
   });
-  it('email to campaigns parent dac subscriber, after proposed Trace Accepted', async () => {
+  it('email to campaigns parent dac subscriber, after proposed Milestone Accepted', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, dacSubscriber } = await createTraceAndCampaign();
+    const { campaign, milestone, dacSubscriber } = await createMilestoneAndCampaign();
     const message = `test message - ${new Date()}`;
-    await proposedTraceAccepted(app, {
-      trace,
+    await proposedMilestoneAccepted(app, {
+      milestone,
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
@@ -404,7 +416,7 @@ function proposedTraceAcceptedTestCases() {
       paginate: false,
       query: {
         recipient: dacSubscriber.email,
-        traceId: trace._id,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_ACCEPTED,
       },
@@ -412,12 +424,12 @@ function proposedTraceAcceptedTestCases() {
     assert.isAtLeast(dacSubscriberEmails.length, 1);
     assert.equal(dacSubscriberEmails[0].message, message);
   });
-  it('email to campaigns subscriber, after proposed Trace Accepted', async () => {
+  it('email to campaigns subscriber, after proposed Milestone Accepted', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, campaignSubscriber } = await createTraceAndCampaign();
+    const { campaign, milestone, campaignSubscriber } = await createMilestoneAndCampaign();
     const message = `test message - ${new Date()}`;
-    await proposedTraceAccepted(app, {
-      trace,
+    await proposedMilestoneAccepted(app, {
+      milestone,
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
@@ -426,7 +438,7 @@ function proposedTraceAcceptedTestCases() {
       paginate: false,
       query: {
         recipient: campaignSubscriber.email,
-        traceId: trace._id,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_ACCEPTED,
       },
@@ -436,156 +448,156 @@ function proposedTraceAcceptedTestCases() {
   });
 }
 
-function proposedTraceRejectedTestCases() {
-  it('email to traceOwner, when proposed trace rejected', async () => {
+function proposedMilestoneRejectedTestCases() {
+  it('email to milestoneOwner, when proposed milestone rejected', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceOwner } = await createTraceAndCampaign();
+    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
     const message = `test message - ${new Date()}`;
-    await proposedTraceRejected(app, {
-      trace,
+    await proposedMilestoneRejected(app, {
+      milestone,
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceOwnerEmails = await emailService.find({
+    const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceOwner.email,
-        traceId: trace._id,
+        recipient: milestoneOwner.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_REJECTED,
       },
     });
-    assert.isAtLeast(traceOwnerEmails.length, 1);
-    assert.equal(traceOwnerEmails[0].message, message);
+    assert.isAtLeast(milestoneOwnerEmails.length, 1);
+    assert.equal(milestoneOwnerEmails[0].message, message);
   });
 }
 
-function traceRequestReviewTestCases() {
-  it('email to traceReviewer, when proposed trace requested for review', async () => {
+function milestoneRequestReviewTestCases() {
+  it('email to milestoneReviewer, when proposed milestone requested for review', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceReviewer } = await createTraceAndCampaign();
+    const { campaign, milestone, milestoneReviewer } = await createMilestoneAndCampaign();
     const message = `test message - ${new Date()}`;
-    await traceRequestReview(app, {
-      trace,
+    await milestoneRequestReview(app, {
+      milestone,
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceReviewerEmails = await emailService.find({
+    const milestoneReviewerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceReviewer.email,
-        traceId: trace._id,
+        recipient: milestoneReviewer.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_REQUEST_REVIEW,
       },
     });
-    assert.isAtLeast(traceReviewerEmails.length, 1);
-    assert.equal(traceReviewerEmails[0].message, message);
+    assert.isAtLeast(milestoneReviewerEmails.length, 1);
+    assert.equal(milestoneReviewerEmails[0].message, message);
   });
 }
 
-function traceReviewRejectedTestCases() {
-  it('email to traceOwner, when proposed trace rejected', async () => {
+function milestoneReviewRejectedTestCases() {
+  it('email to milestoneOwner, when proposed milestone rejected', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceOwner } = await createTraceAndCampaign();
+    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
     const message = `test message - ${new Date()}`;
-    await traceReviewRejected(app, {
-      trace,
+    await milestoneReviewRejected(app, {
+      milestone,
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceOwnerEmails = await emailService.find({
+    const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceOwner.email,
-        traceId: trace._id,
+        recipient: milestoneOwner.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_REJECTED,
       },
     });
-    assert.isAtLeast(traceOwnerEmails.length, 1);
-    assert.equal(traceOwnerEmails[0].message, message);
+    assert.isAtLeast(milestoneOwnerEmails.length, 1);
+    assert.equal(milestoneOwnerEmails[0].message, message);
   });
 }
 
-function traceCancelledTestCases() {
-  it('email to traceOwner, when proposed trace marks as complete', async () => {
+function milestoneCanceledTestCases() {
+  it('email to milestoneOwner, when proposed milestone marks as complete', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceOwner } = await createTraceAndCampaign();
+    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
     const message = `test message - ${new Date()}`;
-    await traceCancelled(app, {
-      trace,
+    await milestoneCanceled(app, {
+      milestone,
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceOwnerEmails = await emailService.find({
+    const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceOwner.email,
-        traceId: trace._id,
+        recipient: milestoneOwner.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_CANCELLED,
       },
     });
-    assert.isAtLeast(traceOwnerEmails.length, 1);
-    assert.equal(traceOwnerEmails[0].message, message);
+    assert.isAtLeast(milestoneOwnerEmails.length, 1);
+    assert.equal(milestoneOwnerEmails[0].message, message);
   });
 }
 
-const traceMarkedCompletedTestCases = () => {
+const milestoneMarkedCompletedTestCases = () => {
   const message = `test message - ${new Date()}`;
 
-  it('email to traceRecipient, when proposed trace marks as complete', async () => {
+  it('email to milestoneRecipient, when proposed milestone marks as complete', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceRecipient } = await createTraceAndCampaign();
-    await traceMarkedCompleted(app, {
-      trace,
+    const { campaign, milestone, milestoneRecipient } = await createMilestoneAndCampaign();
+    await milestoneMarkedCompleted(app, {
+      milestone,
       message,
     });
     await sleep(50);
 
-    const traceRecipientEmails = await emailService.find({
+    const milestoneRecipientEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceRecipient.email,
-        traceId: trace._id,
+        recipient: milestoneRecipient.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         message,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
       },
     });
-    assert.isAtLeast(traceRecipientEmails.length, 1);
+    assert.isAtLeast(milestoneRecipientEmails.length, 1);
   });
-  it('email to traceReviewer, when proposed trace marks as complete', async () => {
+  it('email to milestoneReviewer, when proposed milestone marks as complete', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceReviewer } = await createTraceAndCampaign();
-    await traceMarkedCompleted(app, {
-      trace,
+    const { campaign, milestone, milestoneReviewer } = await createMilestoneAndCampaign();
+    await milestoneMarkedCompleted(app, {
+      milestone,
       message,
     });
     await sleep(50);
 
-    const traceReviewerEmails = await emailService.find({
+    const milestoneReviewerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceReviewer.email,
-        traceId: trace._id,
+        recipient: milestoneReviewer.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         message,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
       },
     });
-    assert.isAtLeast(traceReviewerEmails.length, 1);
+    assert.isAtLeast(milestoneReviewerEmails.length, 1);
   });
-  it('email to campaignOwner, when proposed trace marks as complete', async () => {
+  it('email to campaignOwner, when proposed milestone marks as complete', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, campaignOwner } = await createTraceAndCampaign();
-    await traceMarkedCompleted(app, {
-      trace,
+    const { campaign, milestone, campaignOwner } = await createMilestoneAndCampaign();
+    await milestoneMarkedCompleted(app, {
+      milestone,
       message,
     });
     await sleep(50);
@@ -594,7 +606,7 @@ const traceMarkedCompletedTestCases = () => {
       paginate: false,
       query: {
         recipient: campaignOwner.email,
-        traceId: trace._id,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         message,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
@@ -602,11 +614,11 @@ const traceMarkedCompletedTestCases = () => {
     });
     assert.isAtLeast(campaignOwnerEmails.length, 1);
   });
-  it('email to campaignReviewer, when proposed trace marks as complete', async () => {
+  it('email to campaignReviewer, when proposed milestone marks as complete', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, campaignReviewer } = await createTraceAndCampaign();
-    await traceMarkedCompleted(app, {
-      trace,
+    const { campaign, milestone, campaignReviewer } = await createMilestoneAndCampaign();
+    await milestoneMarkedCompleted(app, {
+      milestone,
       message,
     });
     await sleep(50);
@@ -615,7 +627,7 @@ const traceMarkedCompletedTestCases = () => {
       paginate: false,
       query: {
         recipient: campaignReviewer.email,
-        traceId: trace._id,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         message,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
@@ -623,11 +635,11 @@ const traceMarkedCompletedTestCases = () => {
     });
     assert.isAtLeast(campaignReviewerEmails.length, 1);
   });
-  it('email to dacOwner, when proposed trace marks as complete', async () => {
+  it('email to dacOwner, when proposed milestone marks as complete', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, dacOwner } = await createTraceAndCampaign();
-    await traceMarkedCompleted(app, {
-      trace,
+    const { campaign, milestone, dacOwner } = await createMilestoneAndCampaign();
+    await milestoneMarkedCompleted(app, {
+      milestone,
       message,
     });
     await sleep(50);
@@ -636,7 +648,7 @@ const traceMarkedCompletedTestCases = () => {
       paginate: false,
       query: {
         recipient: dacOwner.email,
-        traceId: trace._id,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
       },
@@ -644,37 +656,37 @@ const traceMarkedCompletedTestCases = () => {
     assert.isAtLeast(dacOwnerEmails.length, 1);
   });
 
-  it('email to traceOwner, when proposed trace marks as complete', async () => {
+  it('email to milestoneOwner, when proposed milestone marks as complete', async () => {
     const emailService = app.service('emails');
 
-    const { campaign, trace, traceOwner } = await createTraceAndCampaign();
+    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
 
-    await traceMarkedCompleted(app, {
-      trace,
+    await milestoneMarkedCompleted(app, {
+      milestone,
       message,
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceOwnerEmails = await emailService.find({
+    const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceOwner.email,
-        traceId: trace._id,
+        recipient: milestoneOwner.email,
+        milestoneId: milestone._id,
         message,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
       },
     });
-    assert.isAtLeast(traceOwnerEmails.length, 1);
+    assert.isAtLeast(milestoneOwnerEmails.length, 1);
   });
 };
 
 function donationsCollectedTestCases() {
-  it('email to traceRecipient, when collect trace donations', async () => {
+  it('email to milestoneRecipient, when colelct milestone donations', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceRecipient } = await createTraceAndCampaign();
+    const { campaign, milestone, milestoneRecipient } = await createMilestoneAndCampaign();
     await donationsCollected(app, {
-      trace,
+      milestone,
       conversation: {
         payments: [
           {
@@ -686,24 +698,24 @@ function donationsCollectedTestCases() {
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceRecipientEmails = await emailService.find({
+    const milestoneRecipientEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceRecipient.email,
-        traceId: trace._id,
+        recipient: milestoneRecipient.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.DONATIONS_COLLECTED,
       },
     });
-    assert.isAtLeast(traceRecipientEmails.length, 1);
+    assert.isAtLeast(milestoneRecipientEmails.length, 1);
   });
 }
-function traceReceivedDonationTestCases() {
-  it('email to traceRecipient, when someone donate/delagate to trace', async () => {
+function milestoneReceivedDonationTestCases() {
+  it('email to milestoneRecipient, when someone donate/delagate to milestone', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceRecipient } = await createTraceAndCampaign();
-    await traceReceivedDonation(app, {
-      trace,
+    const { campaign, milestone, milestoneRecipient } = await createMilestoneAndCampaign();
+    await milestoneReceivedDonation(app, {
+      milestone,
       token: {
         symbol: 'ETH',
       },
@@ -711,22 +723,22 @@ function traceReceivedDonationTestCases() {
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceRecipientEmails = await emailService.find({
+    const milestoneRecipientEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceRecipient.email,
-        traceId: trace._id,
+        recipient: milestoneRecipient.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.DONATION_RECEIVED,
       },
     });
-    assert.isAtLeast(traceRecipientEmails.length, 1);
+    assert.isAtLeast(milestoneRecipientEmails.length, 1);
   });
-  it('email to traceOwner, when someone donate/delagate to trace', async () => {
+  it('email to milestoneOwner, when someone donate/delagate to milestone', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceOwner } = await createTraceAndCampaign();
-    await traceReceivedDonation(app, {
-      trace,
+    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
+    await milestoneReceivedDonation(app, {
+      milestone,
       token: {
         symbol: 'ETH',
       },
@@ -734,25 +746,25 @@ function traceReceivedDonationTestCases() {
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceOwnerEmails = await emailService.find({
+    const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceOwner.email,
-        traceId: trace._id,
+        recipient: milestoneOwner.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.DONATION_RECEIVED,
       },
     });
-    assert.isAtLeast(traceOwnerEmails.length, 1);
+    assert.isAtLeast(milestoneOwnerEmails.length, 1);
   });
 }
 
 function moneyWentToRecipientWalletTestCases() {
-  it('email to traceRecipient, when money goes to recipient wallet', async () => {
+  it('email to milestoneRecipient, when money goes to recipient wallet', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceRecipient } = await createTraceAndCampaign();
+    const { campaign, milestone, milestoneRecipient } = await createMilestoneAndCampaign();
     await moneyWentToRecipientWallet(app, {
-      trace,
+      milestone,
       payments: [
         {
           symbol: 'ETH',
@@ -762,22 +774,22 @@ function moneyWentToRecipientWalletTestCases() {
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceRecipientEmails = await emailService.find({
+    const milestoneRecipientEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceRecipient.email,
-        traceId: trace._id,
+        recipient: milestoneRecipient.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.DONATIONS_COLLECTED,
       },
     });
-    assert.isAtLeast(traceRecipientEmails.length, 1);
+    assert.isAtLeast(milestoneRecipientEmails.length, 1);
   });
-  it('email to traceOwner, when someone donate/delagate to trace', async () => {
+  it('email to milestoneOwner, when someone donate/delagate to milestone', async () => {
     const emailService = app.service('emails');
-    const { campaign, trace, traceOwner } = await createTraceAndCampaign();
-    await traceReceivedDonation(app, {
-      trace,
+    const { campaign, milestone, milestoneOwner } = await createMilestoneAndCampaign();
+    await milestoneReceivedDonation(app, {
+      milestone,
       token: {
         symbol: 'ETH',
       },
@@ -785,31 +797,31 @@ function moneyWentToRecipientWalletTestCases() {
     });
     // because creating and sending email is async, we should wait to make sure the email hooks worked
     await sleep(50);
-    const traceOwnerEmails = await emailService.find({
+    const milestoneOwnerEmails = await emailService.find({
       paginate: false,
       query: {
-        recipient: traceOwner.email,
-        traceId: trace._id,
+        recipient: milestoneOwner.email,
+        milestoneId: milestone._id,
         campaignId: campaign._id,
         unsubscribeType: EmailSubscribeTypes.DONATION_RECEIVED,
       },
     });
-    assert.isAtLeast(traceOwnerEmails.length, 1);
+    assert.isAtLeast(milestoneOwnerEmails.length, 1);
   });
 }
 
 describe('test normalizeAmount', normalizeAmountTestCases);
 describe('test capitalizeDelegateType', capitalizeDelegateTypeTestCases);
-describe('test generateTraceCtaRelativeUrl', generateTraceCtaRelativeUrlTestCases);
-describe('test proposedTraceEdited', proposedTraceEditedTestCases);
-describe('test traceProposed', traceProposedTestCases);
-describe('test proposedTraceAccepted', proposedTraceAcceptedTestCases);
-describe('test proposedTraceRejected', proposedTraceRejectedTestCases);
-describe('test traceRequestReview', traceRequestReviewTestCases);
-describe('test traceReviewRejected', traceReviewRejectedTestCases);
-describe('test traceReviewRejected', traceReviewRejectedTestCases);
-describe('test traceMarkedCompleted', traceMarkedCompletedTestCases);
-describe('test traceCancelled', traceCancelledTestCases);
+describe('test generateMilestoneCtaRelativeUrl', generateMilestoneCtaRelativeUrlTestCases);
+describe('test proposedMilestoneEdited', proposedMilestoneEditedTestCases);
+describe('test milestoneProposed', milestoneProposedTestCases);
+describe('test proposedMilestoneAccepted', proposedMilestoneAcceptedTestCases);
+describe('test proposedMilestoneRejected', proposedMilestoneRejectedTestCases);
+describe('test milestoneRequestReview', milestoneRequestReviewTestCases);
+describe('test milestoneReviewRejected', milestoneReviewRejectedTestCases);
+describe('test milestoneReviewRejected', milestoneReviewRejectedTestCases);
+describe('test milestoneMarkedCompleted', milestoneMarkedCompletedTestCases);
+describe('test milestoneCanceled', milestoneCanceledTestCases);
 describe('test donationsCollected', donationsCollectedTestCases);
-describe('test traceReceivedDonation', traceReceivedDonationTestCases);
+describe('test milestoneReceivedDonation', milestoneReceivedDonationTestCases);
 describe('test moneyWentToRecipientWallet', moneyWentToRecipientWalletTestCases);

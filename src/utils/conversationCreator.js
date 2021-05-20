@@ -44,19 +44,19 @@ async function addPaymentToExistingDelegatedConversation(payment, similarDelegat
 // eslint-disable-next-line consistent-return
 async function createPayoutConversation(
   app,
-  { traceId, performedByAddress, timestamp, payment, txHash },
+  { milestoneId, performedByAddress, timestamp, payment, txHash },
 ) {
   try {
     const service = app.service('conversations');
     const similarPayout = await findSimilarPayoutConversation(app, {
-      traceId,
+      milestoneId,
       txHash,
     });
     if (similarPayout) {
       return addPaymentToExistingPayoutConversation({ payment, similarPayout, app });
     }
     const data = {
-      traceId,
+      milestoneId,
       messageContext: CONVERSATION_MESSAGE_CONTEXT.PAYOUT,
       createdAt: timestamp,
       txHash,
@@ -70,10 +70,10 @@ async function createPayoutConversation(
 
 const createDonatedConversation = async (
   app,
-  { traceId, donationId, homeTxHash, payment, giverAddress, actionTakerAddress },
+  { milestoneId, donationId, homeTxHash, payment, giverAddress, actionTakerAddress },
 ) => {
   const data = {
-    traceId,
+    milestoneId,
     messageContext: CONVERSATION_MESSAGE_CONTEXT.DONATED,
     donationId,
     txHash: homeTxHash,
@@ -94,10 +94,10 @@ const createDonatedConversation = async (
 
 const createDelegatedConversation = async (
   app,
-  { traceId, donationId, txHash, payment, parentDonations, actionTakerAddress },
+  { milestoneId, donationId, txHash, payment, parentDonations, actionTakerAddress },
 ) => {
   const similarDelegation = await findSimilarDelegatedConversation(app, {
-    traceId,
+    milestoneId,
     txHash,
     currencySymbol: payment.symbol,
   });
@@ -107,7 +107,7 @@ const createDelegatedConversation = async (
   const [firstParentId] = parentDonations;
   const firstParent = await app.service('donations').get(firstParentId);
   const data = {
-    traceId,
+    milestoneId,
     messageContext: CONVERSATION_MESSAGE_CONTEXT.DELEGATED,
     donationId,
     txHash,
@@ -128,10 +128,10 @@ const createDelegatedConversation = async (
 
 const createRecipientChangedConversation = async (
   app,
-  { traceId, newRecipientAddress, timestamp, txHash, from },
+  { milestoneId, newRecipientAddress, timestamp, txHash, from },
 ) => {
   const data = {
-    traceId,
+    milestoneId,
     messageContext: CONVERSATION_MESSAGE_CONTEXT.RECIPIENT_CHANGED,
     recipientAddress: newRecipientAddress,
     txHash,

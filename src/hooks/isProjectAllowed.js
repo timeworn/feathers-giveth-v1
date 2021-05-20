@@ -1,7 +1,7 @@
 const commons = require('feathers-hooks-common');
 const errors = require('@feathersjs/errors');
 const { CampaignStatus } = require('../models/campaigns.model');
-const { TraceStatus } = require('../models/traces.model');
+const { MilestoneStatus } = require('../models/milestones.model');
 const { ZERO_ADDRESS } = require('../blockchain/lib/web3Helpers');
 const { isUserInProjectWhiteList, isUserInReviewerWhiteList } = require('../utils/roleUtility');
 
@@ -13,10 +13,10 @@ const checkReviewer = async context => {
   const items = commons.getItems(context);
 
   const inWhitelist = async project => {
-    // new traces have optional reviewer
+    // new milestones have optional reviewer
     if (!project.reviewerAddress || project.reviewerAddress === ZERO_ADDRESS) return;
     if (await isUserInReviewerWhiteList(context.app, project.reviewerAddress)) {
-      // traces have a campaignReviewerAddress
+      // milestones have a campaignReviewerAddress
       if (project.campaignReviewerAddress) {
         const campaign = await context.app.service('campaigns').get(project.campaignId);
         if (
@@ -54,7 +54,7 @@ const checkOwner = context => {
   const inWhitelist = async project => {
     if (
       (await isUserInProjectWhiteList(context.app, project.ownerAddress.toLowerCase())) ||
-      [TraceStatus.PROPOSED, CampaignStatus.PROPOSED].includes(project.status)
+      [MilestoneStatus.PROPOSED, CampaignStatus.PROPOSED].includes(project.status)
     ) {
       return;
     }
