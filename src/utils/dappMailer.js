@@ -11,8 +11,8 @@ const { findUserByAddress } = require('../repositories/userRepository');
 
 const emailNotificationTemplate = 'notification';
 const emailStyle = `style='line-height: 33px; font-size: 22px;'`;
-const generateTraceCtaRelativeUrl = (campaignId, traceId) => {
-  return `/campaigns/${campaignId}/traces/${traceId}`;
+const generateMilestoneCtaRelativeUrl = (campaignId, milestoneId) => {
+  return `/campaigns/${campaignId}/milestones/${milestoneId}`;
 };
 
 const capitalizeDelegateType = inputDelegateType => {
@@ -66,12 +66,12 @@ const donationReceipt = (app, { recipient, user, amount, token, donationType, do
   sendEmail(app, data);
 };
 
-const traceReceivedDonation = (app, { trace, amount, token }) => {
-  const { owner, recipient, campaign } = trace;
-  const subject = 'Giveth - Your Trace has received a donation!';
-  const traceTitle = trace.title;
+const milestoneReceivedDonation = (app, { milestone, amount, token }) => {
+  const { owner, recipient, campaign } = milestone;
+  const subject = 'Giveth - Your Milestone has received a donation!';
+  const milestoneTitle = milestone.title;
   const normalizedAmount = normalizeAmount(amount);
-  const description = `Your Trace ${traceTitle} has received a donation of ${normalizedAmount} ${token.symbol}!`;
+  const description = `Your Milestone ${milestoneTitle} has received a donation of ${normalizedAmount} ${token.symbol}!`;
   const ownerEmailData = {
     recipient: owner.email,
     template: emailNotificationTemplate,
@@ -82,17 +82,17 @@ const traceReceivedDonation = (app, { trace, amount, token }) => {
     text: `
         <p><span ${emailStyle}>Hi ${owner.name}</span></p>
         <p>
-          Your Trace <strong>${traceTitle}</strong> has received a donation of
+          Your Milestone <strong>${milestoneTitle}</strong> has received a donation of
           <span>${normalizedAmount} ${token.symbol}.</span>
           Check to see how close you are to reaching your goal</strong>.
         </p>
       `,
     cta: `Manage your account`,
-    ctaRelativeUrl: `/my-traces`,
+    ctaRelativeUrl: `/my-milestones`,
     unsubscribeType: EmailSubscribeTypes.DONATION_RECEIVED,
-    unsubscribeReason: `You receive this email because you run a trace`,
+    unsubscribeReason: `You receive this email because you run a milestone`,
     campaignId: campaign._id,
-    traceId: trace._id,
+    milestoneId: milestone._id,
   };
   sendEmail(app, ownerEmailData);
 
@@ -111,17 +111,17 @@ const traceReceivedDonation = (app, { trace, amount, token }) => {
     text: `
         <p><span ${emailStyle}>Hi ${recipient.name}</span></p>
         <p>
-          Your Trace <strong>${traceTitle}</strong> has received a donation of
+          Your Milestone <strong>${milestoneTitle}</strong> has received a donation of
           <span>${normalizedAmount} ${token.symbol}.</span>
           Check to see how close you are to reaching your goal</strong>.
         </p>
       `,
     cta: `Manage your account`,
-    ctaRelativeUrl: `/my-traces`,
+    ctaRelativeUrl: `/my-milestones`,
     unsubscribeType: EmailSubscribeTypes.DONATION_RECEIVED,
-    unsubscribeReason: `You receive this email because you run a trace`,
+    unsubscribeReason: `You receive this email because you run a milestone`,
     campaignId: campaign._id,
-    traceId: trace._id,
+    milestoneId: milestone._id,
   };
 
   sendEmail(app, recipientEmailData);
@@ -158,7 +158,7 @@ const requestDelegation = (
         </p>
         <p>
           You can now delegate this money to a ${
-            donationType === AdminTypes.DAC ? 'Campaign or a Trace' : 'Trace'
+            donationType === AdminTypes.DAC ? 'Campaign or a Milestone' : 'Milestone'
           }.
         </p>
       `,
@@ -218,16 +218,16 @@ const donationDelegated = (
   sendEmail(app, data);
 };
 
-const traceProposed = async (app, { trace }) => {
+const milestoneProposed = async (app, { milestone }) => {
   const {
-    owner: traceOwner,
-    title: traceTitle,
-    _id: traceId,
-    reviewer: traceReviewer,
+    owner: milestoneOwner,
+    title: milestoneTitle,
+    _id: milestoneId,
+    reviewer: milestoneReviewer,
     campaign,
     token,
     maxAmount,
-  } = trace;
+  } = milestone;
   const { title: campaignTitle, _id: campaignId, ownerAddress: campaignOwnerAddress } = campaign;
   const campaignOwner = await app.service('users').get(campaignOwnerAddress);
   const amount =
@@ -238,212 +238,212 @@ const traceProposed = async (app, { trace }) => {
   const campaignOwnerEmailData = {
     recipient: campaignOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - A Trace has been proposed!',
-    secretIntro: `Take action! A Trace has been proposed for your Campaign! Please accept or reject.`,
-    title: 'Take action: Trace proposed!',
+    subject: 'Giveth - A Milestone has been proposed!',
+    secretIntro: `Take action! A Milestone has been proposed for your Campaign! Please accept or reject.`,
+    title: 'Take action: Milestone proposed!',
     image: EmailImages.REVIEW_BANNER,
     text: `
         <p><span ${emailStyle}>Hi ${campaignOwner.name}</span></p>
         <p>
-          The Trace <strong>${traceTitle}</strong> for <strong>${amount}</strong> has been proposed to <strong>${campaignTitle}</strong> Campaign .
-          If you think this is a great idea, then <strong>please approve this Trace within 3 days</strong> to add it to your Campaign.
+          The Milestone <strong>${milestoneTitle}</strong> for <strong>${amount}</strong> has been proposed to <strong>${campaignTitle}</strong> Campaign .
+          If you think this is a great idea, then <strong>please approve this Milestone within 3 days</strong> to add it to your Campaign.
           If not, then please reject it with comment.
         </p>
       `,
-    cta: `See the Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `See the Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
     unsubscribeReason: `You receive this email because you run a Campaign`,
-    traceId,
+    milestoneId,
     campaignId,
   };
   await sendEmail(app, campaignOwnerEmailData);
 
-  const traceOwnerEmailData = {
-    recipient: traceOwner.email,
+  const milestoneOwnerEmailData = {
+    recipient: milestoneOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - Your Trace Proposal has been sent!',
-    secretIntro: `Your proposed Trace ${traceTitle} has been submitted for review!`,
+    subject: 'Giveth - Your Milestone Proposal has been sent!',
+    secretIntro: `Your proposed Milestone ${milestoneTitle} has been submitted for review!`,
     title: 'Finger Crossed!',
     image: EmailImages.SUGGEST_MILESTONE,
     text: `
-        <p><span ${emailStyle}>Hi ${traceOwner.name}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneOwner.name}</span></p>
         <p>
-          Your proposed Trace <strong>${traceTitle}</strong>
+          Your proposed Milestone <strong>${milestoneTitle}</strong>
           has been submitted for review!
-          We’ll let you know if the Trace is accepted by the Campaign Manager
+          We’ll let you know if the Milestone is accepted by the Campaign Manager
           so you can start raising funds.</p>
       `,
-    cta: `Manage your Traces`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `Manage your Milestones`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
-    unsubscribeReason: `You receive this email because you proposed a trace`,
-    traceId,
+    unsubscribeReason: `You receive this email because you proposed a milestone`,
+    milestoneId,
     campaignId,
   };
-  await sendEmail(app, traceOwnerEmailData);
+  await sendEmail(app, milestoneOwnerEmailData);
 
-  if (!traceReviewer) {
+  if (!milestoneReviewer) {
     return;
   }
-  const traceReviewerEmailData = {
-    recipient: traceReviewer.email,
+  const milestoneReviewerEmailData = {
+    recipient: milestoneReviewer.email,
     template: emailNotificationTemplate,
     subject: 'Giveth - Time to review!',
-    secretIntro: `Take action: A Trace has been proposed for your review!`,
-    title: 'Take action: Trace proposed!',
+    secretIntro: `Take action: A Milestone has been proposed for your review!`,
+    title: 'Take action: Milestone proposed!',
     image: EmailImages.REVIEW_BANNER,
     text: `
-        <p><span ${emailStyle}>Hi ${traceReviewer.name || ''}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneReviewer.name || ''}</span></p>
         <p>
-          The Trace <strong>${traceTitle}</strong>  has been proposed for your review.
-           If you think this is a great idea, <strong>please approve this Trace within 3
+          The Milestone <strong>${milestoneTitle}</strong>  has been proposed for your review.
+           If you think this is a great idea, <strong>please approve this Milestone within 3
            days</strong> to add it to your Campaign. If not, then please reject it with a comment.'</p>
       `,
-    cta: `See the Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `See the Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_PROPOSED,
-    unsubscribeReason: `You receive this email because you are trace reviewer`,
+    unsubscribeReason: `You receive this email because you are milestone reviewer`,
     campaignId,
-    traceId,
+    milestoneId,
   };
-  await sendEmail(app, traceReviewerEmailData);
+  await sendEmail(app, milestoneReviewerEmailData);
 };
 
-const campaignOwnerEditedProposedTrace = async (app, { trace, campaignOwner }) => {
-  const { title: traceTitle, _id: traceId, campaign, owner: traceOwner } = trace;
+const campaignOwnerEditedProposedMilestone = async (app, { milestone, campaignOwner }) => {
+  const { title: milestoneTitle, _id: milestoneId, campaign, owner: milestoneOwner } = milestone;
   const { title: campaignTitle, _id: campaignId } = campaign;
 
   const campaignOwnerEmailData = {
     recipient: campaignOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - Your Trace edits have been submitted',
-    secretIntro: `You have edited the proposed Trace ${traceTitle}`,
-    title: 'Your Trace edits have been submitted',
+    subject: 'Giveth - Your Milestone edits have been submitted',
+    secretIntro: `You have edited the proposed Milestone ${milestoneTitle}`,
+    title: 'Your Milestone edits have been submitted',
     image: EmailImages.SUGGEST_MILESTONE,
     text: `
         <p><span ${emailStyle}>Hi ${campaignOwner.name || ''}</span></p>
         <p>
-          Your edits to the proposed Trace  <strong>${traceTitle}</strong>
+          Your edits to the proposed Milestone  <strong>${milestoneTitle}</strong>
            in your Campaign <strong>${campaignTitle}</strong>
             have been submitted. Check to review your edits.</p>
       `,
-    cta: `See the Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `See the Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
     unsubscribeReason: `You receive this email because you are campaign manager`,
     campaignId,
-    traceId,
+    milestoneId,
   };
   await sendEmail(app, campaignOwnerEmailData);
-  const traceOwnerEmailData = {
-    recipient: traceOwner.email,
+  const milestoneOwnerEmailData = {
+    recipient: milestoneOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - Your Trace has been edited',
-    secretIntro: `Your trace ${traceTitle} has been edited by the Campaign Manager.`,
-    title: 'Your Trace has been edited',
+    subject: 'Giveth - Your Milestone has been edited',
+    secretIntro: `Your milestone ${milestoneTitle} has been edited by the Campaign Manager.`,
+    title: 'Your Milestone has been edited',
     image: EmailImages.SUGGEST_MILESTONE,
     text: `
-        <p><span ${emailStyle}>Hi ${traceOwner.name || ''}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneOwner.name || ''}</span></p>
         <p>
-          Your trace  <strong>${traceTitle}</strong>
+          Your milestone  <strong>${milestoneTitle}</strong>
           has been edited by the Campaign Manager.
           Check to see what edits have been made.</p>
       `,
-    cta: `See the Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `See the Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
-    unsubscribeReason: `You receive this email because you are trace owner`,
+    unsubscribeReason: `You receive this email because you are milestone owner`,
     campaignId,
-    traceId,
+    milestoneId,
   };
-  await sendEmail(app, traceOwnerEmailData);
+  await sendEmail(app, milestoneOwnerEmailData);
 };
 
-const traceReviewerEditedProposedTrace = async (app, { trace }) => {
-  const { title: traceTitle, _id: traceId, campaign } = trace;
+const milestoneReviewerEditedProposedMilestone = async (app, { milestone }) => {
+  const { title: milestoneTitle, _id: milestoneId, campaign } = milestone;
   const { title: campaignTitle, _id: campaignId, ownerAddress: campaignOwnerAddress } = campaign;
   const campaignOwner = await app.service('users').get(campaignOwnerAddress);
 
   const campaignOwnerEmailData = {
     recipient: campaignOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - A proposed Trace in your Campaign has been edited',
-    secretIntro: `The proposed Trace ${traceTitle} in your Campaign ${campaignTitle} has been edited.’`,
-    title: 'A proposed Trace has been edited',
+    subject: 'Giveth - A proposed Milestone in your Campaign has been edited',
+    secretIntro: `The proposed Milestone ${milestoneTitle} in your Campaign ${campaignTitle} has been edited.’`,
+    title: 'A proposed Milestone has been edited',
     image: EmailImages.SUGGEST_MILESTONE,
     text: `
         <p><span ${emailStyle}>Hi ${campaignOwner.name || ''}</span></p>
         <p>
-          The proposed Trace <strong>${traceTitle}</strong>
+          The proposed Milestone <strong>${milestoneTitle}</strong>
            in your Campaign <strong>${campaignTitle}</strong>
-            has been edited by the Trace Reviewer. Check to review the edits.</p>
+            has been edited by the Milestone Reviewer. Check to review the edits.</p>
       `,
-    cta: `See the Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `See the Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
     unsubscribeReason: `You receive this email because you are campaign manager`,
     campaignId,
-    traceId,
+    milestoneId,
   };
   await sendEmail(app, campaignOwnerEmailData);
 };
 
-const traceOwnerEditedProposedTrace = async (app, { trace }) => {
-  const { title: traceTitle, _id: traceId, campaign, owner: traceOwner } = trace;
+const milestoneOwnerEditedProposedMilestone = async (app, { milestone }) => {
+  const { title: milestoneTitle, _id: milestoneId, campaign, owner: milestoneOwner } = milestone;
   const { _id: campaignId } = campaign;
 
   const data = {
-    recipient: traceOwner.email,
+    recipient: milestoneOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - Your Trace edits have been submitted',
-    secretIntro: `You have edited the proposed Trace ${traceTitle}`,
-    title: 'Your Trace edits have been submitted',
+    subject: 'Giveth - Your Milestone edits have been submitted',
+    secretIntro: `You have edited the proposed Milestone ${milestoneTitle}`,
+    title: 'Your Milestone edits have been submitted',
     image: EmailImages.SUGGEST_MILESTONE,
     text: `
-        <p><span ${emailStyle}>Hi ${traceOwner.name || ''}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneOwner.name || ''}</span></p>
         <p>
-          Your edits to the proposed Trace  <strong>${traceTitle}</strong>
+          Your edits to the proposed Milestone  <strong>${milestoneTitle}</strong>
             have been submitted. Check to review your edits.</p>
       `,
-    cta: `See the Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `See the Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_EDITED,
-    unsubscribeReason: `You receive this email because you are trace owner`,
+    unsubscribeReason: `You receive this email because you are milestone owner`,
     campaignId,
-    traceId,
+    milestoneId,
   };
   sendEmail(app, data);
 };
 
-const proposedTraceEdited = async (app, { trace, user }) => {
-  if (user.address === trace.owner.address) {
-    await traceOwnerEditedProposedTrace(app, {
-      trace,
+const proposedMilestoneEdited = async (app, { milestone, user }) => {
+  if (user.address === milestone.owner.address) {
+    await milestoneOwnerEditedProposedMilestone(app, {
+      milestone,
     });
-  } else if (user.address === trace.campaign.ownerAddress) {
-    await campaignOwnerEditedProposedTrace(app, {
-      trace,
+  } else if (user.address === milestone.campaign.ownerAddress) {
+    await campaignOwnerEditedProposedMilestone(app, {
+      milestone,
       campaignOwner: user,
     });
-  } else if (user.address === trace.reviewer.address) {
-    await traceReviewerEditedProposedTrace(app, {
-      trace,
+  } else if (user.address === milestone.reviewer.address) {
+    await milestoneReviewerEditedProposedMilestone(app, {
+      milestone,
     });
   }
 };
 
-const proposedTraceAccepted = async (app, { trace, message }) => {
+const proposedMilestoneAccepted = async (app, { milestone, message }) => {
   const {
-    title: traceTitle,
-    _id: traceId,
+    title: milestoneTitle,
+    _id: milestoneId,
     campaignId,
     campaign,
-    owner: traceOwner,
-    recipient: traceRecipient,
+    owner: milestoneOwner,
+    recipient: milestoneRecipient,
     maxAmount,
     token,
-  } = trace;
+  } = milestone;
   const { title: campaignTitle } = campaign;
 
   const amount =
@@ -451,30 +451,30 @@ const proposedTraceAccepted = async (app, { trace, message }) => {
       ? 'Unlimited amount of any token'
       : `${normalizeAmount(maxAmount)}${token.symbol}`;
 
-  const traceOwnerEmailData = {
-    recipient: traceOwner.email,
+  const milestoneOwnerEmailData = {
+    recipient: milestoneOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - Your proposed Trace is accepted!',
-    secretIntro: `Your Trace ${traceTitle} has been accepted by the Campaign Owner. You can now receive donations.`,
-    title: 'Take action: Trace proposed!',
+    subject: 'Giveth - Your proposed Milestone is accepted!',
+    secretIntro: `Your Milestone ${milestoneTitle} has been accepted by the Campaign Owner. You can now receive donations.`,
+    title: 'Take action: Milestone proposed!',
     image: EmailImages.MILESTONE_REVIEW_APPROVED,
     text: `
-        <p><span ${emailStyle}>Hi ${traceOwner.name}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneOwner.name}</span></p>
         <p>
-          Your proposed Trace <strong>${traceTitle}</strong> to the Campaign <strong>${campaignTitle}</strong> has been accepted by the Campaign Owner!
+          Your proposed Milestone <strong>${milestoneTitle}</strong> to the Campaign <strong>${campaignTitle}</strong> has been accepted by the Campaign Owner!
           <br/><br/>
-          You can now receive donations, start executing the Trace, and once finished, mark it as complete.
+          You can now receive donations, start executing the Milestone, and once finished, mark it as complete.
         </p>
       `,
-    cta: `Manage Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
-    traceId,
+    cta: `Manage Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
+    milestoneId,
     campaignId,
     message,
     unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_ACCEPTED,
-    unsubscribeReason: `You receive this email because you run a Trace`,
+    unsubscribeReason: `You receive this email because you run a Milestone`,
   };
-  sendEmail(app, traceOwnerEmailData);
+  sendEmail(app, milestoneOwnerEmailData);
   const dacWithSubscriptions = await findParentDacSubscribersForCampaign(app, {
     campaignId,
   });
@@ -486,19 +486,19 @@ const proposedTraceAccepted = async (app, { trace, message }) => {
       const dacSubscriberEmailData = {
         recipient: subscriberUser.email,
         template: emailNotificationTemplate,
-        subject: `Giveth - ${dacTitle} has added a new trace!`,
+        subject: `Giveth - ${dacTitle} has added a new milestone!`,
         secretIntro: `Check out what ${dacTitle} has been up to!`,
         title: `${dacTitle} has expanded!`,
         image: EmailImages.MILESTONE_REVIEW_APPROVED,
         text: `
         <p><span ${emailStyle}>Hi ${subscription.user.name || ''}</span></p>
         <p>
-         ${dacTitle} added a new trace. Come see what awesome things they have planned!
+         ${dacTitle} added a new milestone. Come see what awesome things they have planned!
         </p>
       `,
-        cta: `See Trace`,
-        ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
-        traceId,
+        cta: `See Milestone`,
+        ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
+        milestoneId,
         campaignId,
         message,
         unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_ACCEPTED,
@@ -517,19 +517,19 @@ const proposedTraceAccepted = async (app, { trace, message }) => {
     const campaignSubscriberEmailData = {
       recipient: subscriberUser.email,
       template: emailNotificationTemplate,
-      subject: `Giveth - ${campaignTitle} has added a new trace!`,
+      subject: `Giveth - ${campaignTitle} has added a new milestone!`,
       secretIntro: `Check out what ${campaignTitle} has in store!`,
       title: `${campaignTitle} has expanded!`,
       image: EmailImages.MILESTONE_REVIEW_APPROVED,
       text: `
         <p><span ${emailStyle}>Hi ${subscriberUser.name || ''}</span></p>
         <p>
-         ${campaignTitle} added a new trace. Come see what awesome things they have planned!
+         ${campaignTitle} added a new milestone. Come see what awesome things they have planned!
         </p>
       `,
-      cta: `See Trace`,
-      ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
-      traceId,
+      cta: `See Milestone`,
+      ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
+      milestoneId,
       campaignId,
       message,
       unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_ACCEPTED,
@@ -538,114 +538,130 @@ const proposedTraceAccepted = async (app, { trace, message }) => {
     sendEmail(app, campaignSubscriberEmailData);
   }
 
-  // Maybe recipient is campaign and doesnt have email, or recipient id the trace owner
+  // Maybe recipient is campaign and doesnt have email, or recipient id the milestone owner
 
-  // Maybe recipient is null or is campaign and doesnt have email, or recipient id the trace owner
-  if (!traceRecipient || !traceRecipient.email || traceRecipient.address === traceOwner.address) {
+  // Maybe recipient is null or is campaign and doesnt have email, or recipient id the milestone owner
+  if (
+    !milestoneRecipient ||
+    !milestoneRecipient.email ||
+    milestoneRecipient.address === milestoneOwner.address
+  ) {
     return;
   }
   const sendRecipientEmailData = {
-    recipient: traceRecipient.email,
+    recipient: milestoneRecipient.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - Trace created with you as a recipient',
+    subject: 'Giveth - Milestone created with you as a recipient',
     type: EmailSubscribeTypes.MILESTONE_CREATED,
-    secretIntro: `A Trace ${traceTitle} has been created with you as the recipient.`,
-    title: 'Trace created.',
+    secretIntro: `A Milestone ${milestoneTitle} has been created with you as the recipient.`,
+    title: 'Milestone created.',
     image: EmailImages.MILESTONE_REVIEW_APPROVED,
     text: `
-        <p><span ${emailStyle}>Hi ${traceRecipient.name}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneRecipient.name}</span></p>
         <p>
-          A Trace <strong>${traceTitle}</strong> for ${amount}
+          A Milestone <strong>${milestoneTitle}</strong> for ${amount}
            has been created with you as the recipient.
         </p>
       `,
-    cta: `See your Traces`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `See your Milestones`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_CREATED,
-    unsubscribeReason: `You receive this email because you are the recipient of a Trace`,
+    unsubscribeReason: `You receive this email because you are the recipient of a Milestone`,
     campaignId,
-    traceId,
+    milestoneId,
     message,
   };
   sendEmail(app, sendRecipientEmailData);
 };
 
-const proposedTraceRejected = (app, { trace, message }) => {
-  const { owner: traceOwner, _id: traceId, campaignId, title: traceTitle, campaign } = trace;
+const proposedMilestoneRejected = (app, { milestone, message }) => {
+  const {
+    owner: milestoneOwner,
+    _id: milestoneId,
+    campaignId,
+    title: milestoneTitle,
+    campaign,
+  } = milestone;
   const { title: campaignTitle } = campaign;
   const data = {
-    recipient: traceOwner.email,
+    recipient: milestoneOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - Your proposed Trace is rejected :-(',
-    secretIntro: `Your Trace ${traceTitle} has been rejected by the Campaign Owner :-(`,
-    title: 'Trace rejected :-(',
+    subject: 'Giveth - Your proposed Milestone is rejected :-(',
+    secretIntro: `Your Milestone ${milestoneTitle} has been rejected by the Campaign Owner :-(`,
+    title: 'Milestone rejected :-(',
     image: EmailImages.MILESTONE_REVIEW_APPROVED,
     text: `
-        <p><span ${emailStyle}>Hi ${traceOwner.name || ''}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneOwner.name || ''}</span></p>
         <p>
-          Unfortunately your proposed Trace <strong>${traceTitle}</strong> to the Campaign <strong>${campaignTitle}</strong> has been rejected by the Campaign Owner.
+          Unfortunately your proposed Milestone <strong>${milestoneTitle}</strong> to the Campaign <strong>${campaignTitle}</strong> has been rejected by the Campaign Owner.
           <br/><br/>
-          Please contact the Campaign Owner to learn why your Trace was rejected.
+          Please contact the Campaign Owner to learn why your Milestone was rejected.
         </p>
       `,
-    cta: `Manage Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `Manage Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.PROPOSED_MILESTONE_REJECTED,
-    unsubscribeReason: `You receive this email because you proposed a Trace`,
+    unsubscribeReason: `You receive this email because you proposed a Milestone`,
     message,
-    traceId,
+    milestoneId,
     campaignId,
   };
 
   sendEmail(app, data);
 };
 
-const traceRequestReview = (app, { trace, message }) => {
-  const { _id: traceId, campaign, campaignId, reviewer: traceReviewer, title: traceTitle } = trace;
+const milestoneRequestReview = (app, { milestone, message }) => {
+  const {
+    _id: milestoneId,
+    campaign,
+    campaignId,
+    reviewer: milestoneReviewer,
+    title: milestoneTitle,
+  } = milestone;
   const { title: campaignTitle } = campaign;
 
-  const traceRequestReviewEmailData = {
-    recipient: traceReviewer.email,
+  const milestoneRequestReviewEmailData = {
+    recipient: milestoneReviewer.email,
     template: emailNotificationTemplate,
     subject: 'Giveth - Time to review!',
-    secretIntro: `Take action: you are requested to review the Trace ${traceTitle} within 3 days.`,
-    title: 'Trace review requested',
+    secretIntro: `Take action: you are requested to review the Milestone ${milestoneTitle} within 3 days.`,
+    title: 'Milestone review requested',
     image: EmailImages.REVIEW_BANNER,
     text: `
-        <p><span ${emailStyle}>Hi ${traceReviewer.name || ''}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneReviewer.name || ''}</span></p>
         <p>
-          The Trace <strong>${traceTitle}</strong> to the Campaign <strong>${campaignTitle}</strong> has been marked as completed by the Trace Owner.
+          The Milestone <strong>${milestoneTitle}</strong> to the Campaign <strong>${campaignTitle}</strong> has been marked as completed by the Milestone Owner.
           <br/><br/>
         </p>
           Now is your moment to shine!
         </p>
         <p>
-          Please contact the Trace Owner and <strong>review the completion of this Trace within 3 days.</strong>
+          Please contact the Milestone Owner and <strong>review the completion of this Milestone within 3 days.</strong>
         </p>
       `,
-    cta: `Review Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `Review Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_REQUEST_REVIEW,
-    unsubscribeReason: `You receive this email because you run a Trace`,
-    traceId,
+    unsubscribeReason: `You receive this email because you run a Milestone`,
+    milestoneId,
     campaignId,
     message,
   };
 
-  sendEmail(app, traceRequestReviewEmailData);
+  sendEmail(app, milestoneRequestReviewEmailData);
 };
 
-const traceMarkedCompleted = async (app, { trace, message }) => {
+const milestoneMarkedCompleted = async (app, { milestone, message }) => {
   const {
-    owner: traceOwner,
-    recipient: traceRecipient,
-    reviewer: traceReviewer,
-    title: traceTitle,
+    owner: milestoneOwner,
+    recipient: milestoneRecipient,
+    reviewer: milestoneReviewer,
+    title: milestoneTitle,
     token,
     campaignId,
     campaign,
-    _id: traceId,
-  } = trace;
+    _id: milestoneId,
+  } = milestone;
   const {
     title: campaignTitle,
     reviewerAddress: campaignReviewerAddress,
@@ -661,80 +677,80 @@ const traceMarkedCompleted = async (app, { trace, message }) => {
     email: 1,
   });
   const tokenSymbol = token.symbol === ANY_TOKEN.symbol ? '' : token.symbol;
-  const traceOwnerEmailData = {
-    recipient: traceOwner.email,
+  const milestoneOwnerEmailData = {
+    recipient: milestoneOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - Your Trace is finished!',
-    secretIntro: `Your Trace ${traceTitle} has been marked complete by the reviewer. The recipient can now collect the payment.`,
-    title: `Trace completed! Time to collect ${tokenSymbol}.`,
+    subject: 'Giveth - Your Milestone is finished!',
+    secretIntro: `Your Milestone ${milestoneTitle} has been marked complete by the reviewer. The recipient can now collect the payment.`,
+    title: `Milestone completed! Time to collect ${tokenSymbol}.`,
     image: EmailImages.MILESTONE_REVIEW_APPROVED,
     text: `
-        <p><span ${emailStyle}>Hi ${traceOwner.name || ''}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneOwner.name || ''}</span></p>
         <p>
-          The Trace <strong>${traceTitle}</strong> in the Campaign <strong>${campaignTitle}</strong> has been marked complete by the reviewer!.
+          The Milestone <strong>${milestoneTitle}</strong> in the Campaign <strong>${campaignTitle}</strong> has been marked complete by the reviewer!.
           <br/><br/>
         </p>
-          The recipient can now transfer the funds out of this Trace!
+          The recipient can now transfer the funds out of this Milestone!
         </p>
       `,
-    cta: `Manage Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `Manage Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
-    unsubscribeReason: `You receive this email because you run a Trace`,
+    unsubscribeReason: `You receive this email because you run a Milestone`,
     campaignId,
-    traceId,
+    milestoneId,
     message,
   };
-  sendEmail(app, traceOwnerEmailData);
+  sendEmail(app, milestoneOwnerEmailData);
 
-  const traceReviewerEmailData = {
-    recipient: traceReviewer.email,
+  const milestoneReviewerEmailData = {
+    recipient: milestoneReviewer.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - You approved the completion of a Trace',
-    secretIntro: `You have marked the Trace ${traceTitle} as complete. The recipient can now collect the payment.`,
-    title: `Trace completed!`,
+    subject: 'Giveth - You approved the completion of a Milestone',
+    secretIntro: `You have marked the Milestone ${milestoneTitle} as complete. The recipient can now collect the payment.`,
+    title: `Milestone completed!`,
     image: EmailImages.MILESTONE_REVIEW_APPROVED,
     text: `
-        <p><span ${emailStyle}>Hi ${traceReviewer.name || ''}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneReviewer.name || ''}</span></p>
         <p>
-          You have marked the Trace  <strong>${traceTitle}</strong> in the Campaign <strong>${campaignTitle}</strong> as complete! The recipient can now transfer the funds out of this Trace.
+          You have marked the Milestone  <strong>${milestoneTitle}</strong> in the Campaign <strong>${campaignTitle}</strong> as complete! The recipient can now transfer the funds out of this Milestone.
           <br/><br/>
         </p>
-          The recipient can now transfer the funds out of this Trace!
+          The recipient can now transfer the funds out of this Milestone!
         </p>
       `,
-    cta: `Manage Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `Manage Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
-    unsubscribeReason: `You receive this email because you are reviewer of a Trace`,
+    unsubscribeReason: `You receive this email because you are reviewer of a Milestone`,
     campaignId,
-    traceId,
+    milestoneId,
     message,
   };
-  sendEmail(app, traceReviewerEmailData);
+  sendEmail(app, milestoneReviewerEmailData);
 
   const campaignOwnerEmailData = {
     recipient: campaignOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - A Trace in your Campaign is finished!',
-    secretIntro: `The Trace ${traceTitle} in your Campaign ${campaignTitle} has been marked complete by the Trace reviewer.`,
-    title: `Trace completed!`,
+    subject: 'Giveth - A Milestone in your Campaign is finished!',
+    secretIntro: `The Milestone ${milestoneTitle} in your Campaign ${campaignTitle} has been marked complete by the Milestone reviewer.`,
+    title: `Milestone completed!`,
     image: EmailImages.MILESTONE_REVIEW_APPROVED,
     text: `
         <p><span ${emailStyle}>Hi ${campaignOwner.name || ''}</span></p>
         <p>
-          The Trace  <strong>${traceTitle}</strong> in your Campaign <strong>${campaignTitle}</strong> has been marked complete by the Trace reviewer. The recipient can now transfer funds out of this Trace.
+          The Milestone  <strong>${milestoneTitle}</strong> in your Campaign <strong>${campaignTitle}</strong> has been marked complete by the Milestone reviewer. The recipient can now transfer funds out of this Milestone.
           <br/><br/>
         </p>
-          The recipient can now transfer the funds out of this Trace!
+          The recipient can now transfer the funds out of this Milestone!
         </p>
       `,
-    cta: `Manage Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `Manage Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
     unsubscribeReason: `You receive this email because you run a campaign`,
     campaignId,
-    traceId,
+    milestoneId,
     message,
   };
   sendEmail(app, campaignOwnerEmailData);
@@ -742,25 +758,25 @@ const traceMarkedCompleted = async (app, { trace, message }) => {
   const campaignReviewerEmailData = {
     recipient: campaignReviewer.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - A Trace in your Campaign is finished!',
-    secretIntro: `The Trace ${traceTitle} in your Campaign ${campaignTitle} has been marked complete by the Trace reviewer.`,
-    title: `Trace completed!`,
+    subject: 'Giveth - A Milestone in your Campaign is finished!',
+    secretIntro: `The Milestone ${milestoneTitle} in your Campaign ${campaignTitle} has been marked complete by the Milestone reviewer.`,
+    title: `Milestone completed!`,
     image: EmailImages.MILESTONE_REVIEW_APPROVED,
     text: `
         <p><span ${emailStyle}>Hi ${campaignReviewer.name || ''}</span></p>
         <p>
-          The Trace  <strong>${traceTitle}</strong> in your Campaign <strong>${campaignTitle}</strong> has been marked complete by the Trace reviewer. The recipient can now transfer funds out of this Trace.
+          The Milestone  <strong>${milestoneTitle}</strong> in your Campaign <strong>${campaignTitle}</strong> has been marked complete by the Milestone reviewer. The recipient can now transfer funds out of this Milestone.
           <br/><br/>
         </p>
-          The recipient can now transfer the funds out of this Trace!
+          The recipient can now transfer the funds out of this Milestone!
         </p>
       `,
-    cta: `Manage Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `Manage Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
     unsubscribeReason: `You receive this email because you are reviewer of a campaign`,
     campaignId,
-    traceId,
+    milestoneId,
     message,
   };
   sendEmail(app, campaignReviewerEmailData);
@@ -774,89 +790,95 @@ const traceMarkedCompleted = async (app, { trace, message }) => {
     const dacOwnerEmailData = {
       recipient: dacOwner.email,
       template: emailNotificationTemplate,
-      subject: 'Giveth - A Trace in your Campaign is finished!',
-      secretIntro: `The Trace ${traceTitle} in your Campaign ${campaignTitle}
-       that you support has been marked complete by the Trace reviewer.`,
-      title: `Trace completed!`,
+      subject: 'Giveth - A Milestone in your Campaign is finished!',
+      secretIntro: `The Milestone ${milestoneTitle} in your Campaign ${campaignTitle}
+       that you support has been marked complete by the Milestone reviewer.`,
+      title: `Milestone completed!`,
       image: EmailImages.MILESTONE_REVIEW_APPROVED,
       text: `
         <p><span ${emailStyle}>Hi ${dacOwner.name || ''}</span></p>
         <p>
-          The Trace  <strong>${traceTitle}</strong> for the Campaign <strong>${campaignTitle}</strong>
-          that you support has been marked complete by the Trace reviewer.
-          The recipient can now transfer funds out of this Trace.
+          The Milestone  <strong>${milestoneTitle}</strong> for the Campaign <strong>${campaignTitle}</strong>
+          that you support has been marked complete by the Milestone reviewer.
+          The recipient can now transfer funds out of this Milestone.
           <br/><br/>
         </p>
-          The recipient can now transfer the funds out of this Trace!
+          The recipient can now transfer the funds out of this Milestone!
         </p>
       `,
-      cta: `Manage Trace`,
-      ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+      cta: `Manage Milestone`,
+      ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
       unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
       unsubscribeReason: `You receive this email because you run a dac`,
       campaignId,
-      traceId,
+      milestoneId,
       message,
     };
     sendEmail(app, dacOwnerEmailData);
   }
 
   if (
-    !traceRecipient ||
-    !traceRecipient.email
-    //  || traceRecipient.address === traceOwner.address
+    !milestoneRecipient ||
+    !milestoneRecipient.email
+    //  || milestoneRecipient.address === milestoneOwner.address
   ) {
     return;
   }
-  const traceRecipientEmailData = {
-    recipient: traceRecipient.email,
+  const milestoneRecipientEmailData = {
+    recipient: milestoneRecipient.email,
     template: emailNotificationTemplate,
     subject: 'Giveth - Time to collect!',
-    secretIntro: `Your Trace ${traceTitle} has been marked complete by the reviewer. The recipient can now collect the payment.`,
-    title: `Trace completed! Time to collect ${tokenSymbol}.`,
+    secretIntro: `Your Milestone ${milestoneTitle} has been marked complete by the reviewer. The recipient can now collect the payment.`,
+    title: `Milestone completed! Time to collect ${tokenSymbol}.`,
     image: EmailImages.MILESTONE_REVIEW_APPROVED,
     text: `
-        <p><span ${emailStyle}>Hi ${traceRecipient.name || ''}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneRecipient.name || ''}</span></p>
         <p>
-          The Trace <strong>${traceTitle}</strong> in the Campaign <strong>${campaignTitle}</strong> has been marked complete by the reviewer!.
+          The Milestone <strong>${milestoneTitle}</strong> in the Campaign <strong>${campaignTitle}</strong> has been marked complete by the reviewer!.
           <br/><br/>
         </p>
-          You can now transfer the funds out of this Trace!
+          You can now transfer the funds out of this Milestone!
         </p>
       `,
-    cta: `Manage Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `Manage Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_APPROVED,
-    unsubscribeReason: `You receive this email because you are recipient of a Trace`,
+    unsubscribeReason: `You receive this email because you are recipient of a Milestone`,
     campaignId,
-    traceId,
+    milestoneId,
     message,
   };
-  sendEmail(app, traceRecipientEmailData);
+  sendEmail(app, milestoneRecipientEmailData);
 };
 
-const traceReviewRejected = (app, { trace, message }) => {
-  const { owner: traceOwner, title: traceTitle, _id: traceId, campaignId, campaign } = trace;
+const milestoneReviewRejected = (app, { milestone, message }) => {
+  const {
+    owner: milestoneOwner,
+    title: milestoneTitle,
+    _id: milestoneId,
+    campaignId,
+    campaign,
+  } = milestone;
   const { title: campaignTitle } = campaign;
   const data = {
-    recipient: traceOwner.email,
+    recipient: milestoneOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - Trace rejected by reviewer :-(',
+    subject: 'Giveth - Milestone rejected by reviewer :-(',
     type: EmailSubscribeTypes.MILESTONE_REVIEW_REJECTED,
-    secretIntro: `The completion of your Trace ${traceTitle} has been rejected by the reviewer.`,
-    title: 'Trace completion rejected.',
+    secretIntro: `The completion of your Milestone ${milestoneTitle} has been rejected by the reviewer.`,
+    title: 'Milestone completion rejected.',
     image: EmailImages.MILESTONE_REVIEW_REJECTED,
     text: `
-        <p><<span ${emailStyle}>Hi ${traceOwner.name || ''}</span></p>
+        <p><<span ${emailStyle}>Hi ${milestoneOwner.name || ''}</span></p>
         <p>
-          The Trace completion <strong>${traceTitle}</strong> in the Campaign <strong>${campaignTitle}</strong> has been rejected by the reviewer.
+          The Milestone completion <strong>${milestoneTitle}</strong> in the Campaign <strong>${campaignTitle}</strong> has been rejected by the reviewer.
         </p>
       `,
-    cta: `Manage Trace`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `Manage Milestone`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_REVIEW_REJECTED,
-    unsubscribeReason: `You receive this email because you run a Trace`,
-    traceId,
+    unsubscribeReason: `You receive this email because you run a Milestone`,
+    milestoneId,
     campaignId,
     message,
   };
@@ -864,28 +886,34 @@ const traceReviewRejected = (app, { trace, message }) => {
   sendEmail(app, data);
 };
 
-const traceCancelled = (app, { trace, message }) => {
-  const { owner: traceOwner, _id: traceId, title: traceTitle, campaignId, campaign } = trace;
+const milestoneCanceled = (app, { milestone, message }) => {
+  const {
+    owner: milestoneOwner,
+    _id: milestoneId,
+    title: milestoneTitle,
+    campaignId,
+    campaign,
+  } = milestone;
   const { title: campaignTitle } = campaign;
   const data = {
-    recipient: traceOwner.email,
+    recipient: milestoneOwner.email,
     template: emailNotificationTemplate,
-    subject: 'Giveth - Trace canceled :-(',
+    subject: 'Giveth - Milestone canceled :-(',
     type: EmailSubscribeTypes.MILESTONE_CANCELLED,
-    secretIntro: `Your Trace ${traceTitle} has been canceled.`,
-    title: 'Trace Canceled',
+    secretIntro: `Your Milestone ${milestoneTitle} has been canceled.`,
+    title: 'Milestone Canceled',
     image: EmailImages.MILESTONE_CANCELLED,
     text: `
-        <p><span ${emailStyle}>Hi ${traceOwner.name || ''}</span></p>
+        <p><span ${emailStyle}>Hi ${milestoneOwner.name || ''}</span></p>
         <p>
-          The Trace <strong>${traceTitle}</strong> in the Campaign <strong>${campaignTitle}</strong> has been canceled.
+          The Milestone <strong>${milestoneTitle}</strong> in the Campaign <strong>${campaignTitle}</strong> has been canceled.
         </p>
       `,
-    cta: `Manage Traces`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
+    cta: `Manage Milestones`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
     unsubscribeType: EmailSubscribeTypes.MILESTONE_CANCELLED,
-    unsubscribeReason: `You receive this email because you run a Trace`,
-    traceId,
+    unsubscribeReason: `You receive this email because you run a Milestone`,
+    milestoneId,
     campaignId,
     message,
   };
@@ -893,61 +921,71 @@ const traceCancelled = (app, { trace, message }) => {
   sendEmail(app, data);
 };
 
-const donationsCollected = (app, { trace, conversation }) => {
-  const { recipient: traceRecipient, title: traceTitle, _id: traceId, campaignId } = trace;
-  if (!traceRecipient || !traceRecipient.email) {
+const donationsCollected = (app, { milestone, conversation }) => {
+  const {
+    recipient: milestoneRecipient,
+    title: milestoneTitle,
+    _id: milestoneId,
+    campaignId,
+  } = milestone;
+  if (!milestoneRecipient || !milestoneRecipient.email) {
     logger.info(
-      `Currently we dont send email for traces who doesnt have recipient, traceId: ${traceId}`,
+      `Currently we dont send email for milestones who doesnt have recipient, milestoneId: ${milestoneId}`,
     );
     return;
   }
   const data = {
-    recipient: traceRecipient.email,
+    recipient: milestoneRecipient.email,
     template: emailNotificationTemplate,
     subject: 'Giveth - Donations collected',
-    type: 'trace-donations-collected',
-    secretIntro: `Your Trace ${traceTitle} has been paid.`,
-    title: 'Trace Donations Collected',
+    type: 'milestone-donations-collected',
+    secretIntro: `Your Milestone ${milestoneTitle} has been paid.`,
+    title: 'Milestone Donations Collected',
     image: EmailImages.MILESTONE_REVIEW_APPROVED,
     text: `
-        <p><span ${emailStyle}>Hi ${traceRecipient.name || ''}</span></p>
-        <p>The following payments have been initiated for your Trace <strong>${traceTitle}</strong>:</p>
+        <p><span ${emailStyle}>Hi ${milestoneRecipient.name || ''}</span></p>
+        <p>The following payments have been initiated for your Milestone <strong>${milestoneTitle}</strong>:</p>
         <p></p>
         ${conversation.payments.map(p => `<p>${p.amount / 10 ** 18} ${p.symbol}</p>`)}
         <p></p>
         <p>You can expect to see these payment(s) to arrive in your wallet <strong>
-           ${traceRecipient.address}
+           ${milestoneRecipient.address}
         </strong> within 48 - 72 hrs.</p>
       `,
-    cta: `See your Traces`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
-    traceId,
+    cta: `See your Milestones`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
+    milestoneId,
     campaignId,
     unsubscribeType: EmailSubscribeTypes.DONATIONS_COLLECTED,
-    unsubscribeReason: `You receive this email because you are the recipient of a Trace`,
+    unsubscribeReason: `You receive this email because you are the recipient of a Milestone`,
   };
   sendEmail(app, data);
 };
 
-const moneyWentToRecipientWallet = (app, { trace, payments }) => {
-  const { recipient: traceRecipient, title: traceTitle, _id: traceId, campaignId } = trace;
-  if (!traceRecipient || !traceRecipient.email) {
+const moneyWentToRecipientWallet = (app, { milestone, payments }) => {
+  const {
+    recipient: milestoneRecipient,
+    title: milestoneTitle,
+    _id: milestoneId,
+    campaignId,
+  } = milestone;
+  if (!milestoneRecipient || !milestoneRecipient.email) {
     logger.info(
-      `Currently we dont send email for traces who doesnt have recipient, traceId: ${traceId}`,
+      `Currently we dont send email for milestones who doesnt have recipient, milestoneId: ${milestoneId}`,
     );
     return Promise.resolve();
   }
   const data = {
-    recipient: traceRecipient.email,
+    recipient: milestoneRecipient.email,
     template: emailNotificationTemplate,
     subject: 'Giveth - Your funds have been sent!',
-    type: 'trace-donations-transferred',
-    secretIntro: `The funds from your Trace ${traceTitle} have been sent to your wallet.`,
+    type: 'milestone-donations-transferred',
+    secretIntro: `The funds from your Milestone ${milestoneTitle} have been sent to your wallet.`,
     title: 'Time to Celebrate!',
     image: EmailImages.DONATION_BANNER,
     text: `
-        <p><span ${emailStyle}>Hi ${traceRecipient.name || ''}</span></p>
-        <p>The funds from your Trace <strong>${traceTitle}</strong>
+        <p><span ${emailStyle}>Hi ${milestoneRecipient.name || ''}</span></p>
+        <p>The funds from your Milestone <strong>${milestoneTitle}</strong>
         of the amount
         <p></p>
         ${payments.map(p => `<p>${normalizeAmount(p.amount)} ${p.symbol}</p>`)}
@@ -956,15 +994,15 @@ const moneyWentToRecipientWallet = (app, { trace, payments }) => {
         </p>
 
         <p>You have these payment(s) in your wallet <strong>
-           ${traceRecipient.address}
+           ${milestoneRecipient.address}
         </strong> now.</p>
       `,
-    cta: `See your Traces`,
-    ctaRelativeUrl: generateTraceCtaRelativeUrl(campaignId, traceId),
-    traceId,
+    cta: `See your Milestones`,
+    ctaRelativeUrl: generateMilestoneCtaRelativeUrl(campaignId, milestoneId),
+    milestoneId,
     campaignId,
     unsubscribeType: EmailSubscribeTypes.DONATIONS_COLLECTED,
-    unsubscribeReason: `You receive this email because you are the recipient of a Trace`,
+    unsubscribeReason: `You receive this email because you are the recipient of a Milestone`,
   };
   return sendEmail(app, data);
 };
@@ -972,20 +1010,20 @@ const moneyWentToRecipientWallet = (app, { trace, payments }) => {
 module.exports = {
   capitalizeDelegateType,
   normalizeAmount,
-  generateTraceCtaRelativeUrl,
+  generateMilestoneCtaRelativeUrl,
 
   donationsCollected,
   donationReceipt,
-  traceReceivedDonation,
+  milestoneReceivedDonation,
   requestDelegation,
   donationDelegated,
-  traceProposed,
-  proposedTraceAccepted,
-  proposedTraceRejected,
-  proposedTraceEdited,
-  traceReviewRejected,
-  traceMarkedCompleted,
-  traceRequestReview,
-  traceCancelled,
+  milestoneProposed,
+  proposedMilestoneAccepted,
+  proposedMilestoneRejected,
+  proposedMilestoneEdited,
+  milestoneReviewRejected,
+  milestoneMarkedCompleted,
+  milestoneRequestReview,
+  milestoneCanceled,
   moneyWentToRecipientWallet,
 };

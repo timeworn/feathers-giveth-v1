@@ -9,7 +9,7 @@ const populateAdmin = () => context => {
     if (item.type === AdminTypes.GIVER) serviceName = 'users';
     else if (item.type === AdminTypes.DAC) serviceName = 'dacs';
     else if (item.type === AdminTypes.CAMPAIGN) serviceName = 'campaigns';
-    else if (item.type === AdminTypes.TRACE) serviceName = 'traces';
+    else if (item.type === AdminTypes.MILESTONE) serviceName = 'milestones';
 
     const service = context.app.service(serviceName);
     return service.get(item.typeId);

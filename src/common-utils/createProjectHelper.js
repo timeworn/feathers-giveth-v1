@@ -9,7 +9,7 @@ const {
   getBlockTimestamp,
   ANY_TOKEN,
 } = require('../blockchain/lib/web3Helpers');
-const { TraceTypes } = require('../models/traces.model');
+const { MilestoneTypes } = require('../models/milestones.model');
 const { getTokenByForeignAddress } = require('../utils/tokenHelper');
 const { DacStatus } = require('../models/dacs.model');
 
@@ -46,19 +46,19 @@ function createProjectHelper({ web3, liquidPledging, kernel, AppProxyUpgradeable
   };
 
   const managerMethod = milestoneType =>
-    milestoneType === TraceTypes.LPPCappedMilestone ? 'milestoneManager' : 'manager';
+    milestoneType === MilestoneTypes.LPPCappedMilestone ? 'milestoneManager' : 'manager';
   const getCampaignReviewer = ({ milestoneType, milestoneContract }) =>
-    milestoneType === TraceTypes.LPPCappedMilestone
+    milestoneType === MilestoneTypes.LPPCappedMilestone
       ? milestoneContract.campaignReviewer()
       : undefined;
 
   const getMilestoneContract = ({ milestoneType, projectPlugin }) => {
     switch (milestoneType) {
-      case TraceTypes.LPPCappedMilestone:
+      case MilestoneTypes.LPPCappedMilestone:
         return new LPPCappedMilestone(web3, projectPlugin);
-      case TraceTypes.LPMilestone:
+      case MilestoneTypes.LPMilestone:
         return new LPMilestone(web3, projectPlugin);
-      case TraceTypes.BridgedMilestone:
+      case MilestoneTypes.BridgedMilestone:
         return new BridgedMilestone(web3, projectPlugin);
       default:
         throw new Error('Unknown Milestone type ->', milestoneType);
@@ -86,17 +86,17 @@ function createProjectHelper({ web3, liquidPledging, kernel, AppProxyUpgradeable
       switch (baseCode) {
         case bridgedMilestoneBase:
           isCampaign = false;
-          milestoneType = TraceTypes.BridgedMilestone;
+          milestoneType = MilestoneTypes.BridgedMilestone;
           break;
 
         case lpMilestoneBase:
           isCampaign = false;
-          milestoneType = TraceTypes.LPMilestone;
+          milestoneType = MilestoneTypes.LPMilestone;
           break;
 
         case lppCappedMilestoneBase:
           isCampaign = false;
-          milestoneType = TraceTypes.LPPCappedMilestone;
+          milestoneType = MilestoneTypes.LPPCappedMilestone;
           break;
 
         case campaignBase:

@@ -6,7 +6,7 @@ const AdminTypes = {
   GIVER: 'giver',
   DAC: 'dac',
   CAMPAIGN: 'campaign',
-  TRACE: 'trace',
+  MILESTONE: 'milestone',
 };
 
 function PledgeAdmin(app) {

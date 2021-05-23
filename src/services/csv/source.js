@@ -4,12 +4,12 @@ const { DonationStatus } = require('../../models/donations.model');
 const { EventStatus } = require('../../models/events.model');
 
 module.exports = app => {
-  const traceService = app.service('traces');
+  const milestoneService = app.service('milestones');
   const donationModel = app.service('donations').Model;
   const eventModel = app.service('events').Model;
 
-  const getCampaignTraces = async campaignId => {
-    return traceService.find({
+  const getCampaignMilesones = async campaignId => {
+    return milestoneService.find({
       query: {
         campaignId,
         $select: [
@@ -49,28 +49,28 @@ module.exports = app => {
   const getCanceledPledgeIdsByOwners = async ownerIds => {
     return getPledgeIdsByOwnersAndState(ownerIds, [DonationStatus.CANCELED]);
   };
-  const getProjectIdsOfCampaignAndItsTraces = (projectId, traces) => {
-    // List of projects ID of campaign and its traces
+  const getProjectIdsOfCampaignAndItsMilestone = (projectId, milestones) => {
+    // List of projects ID of campaign and its milestones
     const projectIds = [String(projectId)];
-    traces.forEach(trace => {
-      const { projectId: traceProjectId, migratedProjectId } = trace;
+    milestones.forEach(milestone => {
+      const { projectId: milestoneProjectId, migratedProjectId } = milestone;
       if (migratedProjectId) {
         projectIds.push(String(migratedProjectId));
-      } else if (traceProjectId && traceProjectId > 0) {
-        projectIds.push(String(traceProjectId));
+      } else if (milestoneProjectId && milestoneProjectId > 0) {
+        projectIds.push(String(milestoneProjectId));
       }
     });
     return projectIds;
   };
-  // Get stream of items to be written to csv for the campaign, plus traces of this campaign
+  // Get stream of items to be written to csv for the campaign, plus milestones of this campaign
   const getData = async campaign => {
     const { _id: id, projectId } = campaign;
-    const traces = await getCampaignTraces(id);
+    const milestones = await getCampaignMilesones(id);
     const [pledgeIds, canceledPledgeIds] = await Promise.all([
-      getAllPledgeIdsByOwners([id, ...traces.map(m => m._id)]),
-      getCanceledPledgeIdsByOwners([id, ...traces.map(m => m._id)]),
+      getAllPledgeIdsByOwners([id, ...milestones.map(m => m._id)]),
+      getCanceledPledgeIdsByOwners([id, ...milestones.map(m => m._id)]),
     ]);
-    const projectIds = await getProjectIdsOfCampaignAndItsTraces(projectId, traces);
+    const projectIds = await getProjectIdsOfCampaignAndItsMilestone(projectId, milestones);
     const transformer = new Stream.Transform({ objectMode: true });
     transformer._transform = async (fetchedEvent, encoding, callback) => {
       const { event } = fetchedEvent;
@@ -130,7 +130,7 @@ module.exports = app => {
 
     return {
       eventsStream: stream,
-      traces,
+      milestones,
       pledgeIds: new Set(pledgeIds),
       canceledPledgeIds: new Set(canceledPledgeIds),
     };

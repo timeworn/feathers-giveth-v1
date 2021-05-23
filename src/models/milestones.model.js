@@ -1,11 +1,11 @@
 const Item = require('./item.model');
 const DonationCounter = require('./donationCounter.model');
 
-// traces-model.js - A mongoose model
+// milestones-model.js - A mongoose model
 //
 // See http://mongoosejs.com/docs/models.html
 // for more of what you can do here.
-const TraceStatus = {
+const MilestoneStatus = {
   PROPOSED: 'Proposed',
   REJECTED: 'Rejected',
   PENDING: 'Pending',
@@ -19,13 +19,13 @@ const TraceStatus = {
   ARCHIVED: 'Archived',
 };
 
-const TraceTypes = {
+const MilestoneTypes = {
   LPPCappedMilestone: 'LPPCappedMilestone',
   BridgedMilestone: 'BridgedMilestone',
   LPMilestone: 'LPMilestone',
 };
 
-const TraceFormTypes = {
+const MilestoneFormTypes = {
   BOUNTY: 'bounty',
   PAYMENT: 'payment',
   EXPENSE: 'expense',
@@ -36,7 +36,7 @@ function Milestone(app) {
   const mongooseClient = app.get('mongooseClient');
   const { Schema } = mongooseClient;
 
-  const trace = new Schema(
+  const milestone = new Schema(
     {
       title: { type: String, required: true },
       slug: { type: String, required: true },
@@ -56,11 +56,11 @@ function Milestone(app) {
       status: {
         type: String,
         require: true,
-        enum: Object.values(TraceStatus),
+        enum: Object.values(MilestoneStatus),
       },
       formType: {
         type: String,
-        enum: Object.values(TraceFormTypes),
+        enum: Object.values(MilestoneFormTypes),
       },
       items: [Item],
       conversionRateTimestamp: { type: Date },
@@ -81,7 +81,7 @@ function Milestone(app) {
       type: {
         type: String,
         required: true,
-        enum: Object.values(TraceTypes),
+        enum: Object.values(MilestoneTypes),
       },
 
       // these 2 fields should not be stored in mongo
@@ -91,32 +91,32 @@ function Milestone(app) {
       proofItems: [Item],
       messageContext: { type: String },
       tokenAddress: { type: String, required: true },
-      projectAddedAt: { type: Date }, // Store the time trace is accepted or added by campaign owner
+      projectAddedAt: { type: Date }, // Store the time milestone is accepted or added by campaign owner
       gasPaidUsdValue: { type: Number, default: 0 },
     },
     {
       timestamps: true,
     },
   );
-  trace.index({
+  milestone.index({
     title: 'text',
     description: 'text',
     ownerAddress: 'text',
     recipientAddress: 'text',
     reviewerAddress: 'text',
   });
-  trace.index({ campaignId: 1, status: 1, projectAddedAt: 1 });
-  trace.index({ createdAt: 1, ownerAddress: 1, reviewerAddress: 1, recipientAddress: 1 });
-  trace.index({ status: 1, fullyFunded: 1, createdAt: 1 });
-  trace.index({ createdAt: 1, campaignId: 1 });
-  trace.index({ projectId: 1, campaignId: 1 });
-  trace.index({ slug: 1 }, { unique: true });
+  milestone.index({ campaignId: 1, status: 1, projectAddedAt: 1 });
+  milestone.index({ createdAt: 1, ownerAddress: 1, reviewerAddress: 1, recipientAddress: 1 });
+  milestone.index({ status: 1, fullyFunded: 1, createdAt: 1 });
+  milestone.index({ createdAt: 1, campaignId: 1 });
+  milestone.index({ projectId: 1, campaignId: 1 });
+  milestone.index({ slug: 1 }, { unique: true });
 
-  return mongooseClient.model('trace', trace);
+  return mongooseClient.model('milestone', milestone);
 }
 
 module.exports = {
-  TraceStatus,
-  TraceTypes,
+  MilestoneStatus,
+  MilestoneTypes,
   createModel: Milestone,
 };

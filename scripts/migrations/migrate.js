@@ -145,11 +145,11 @@ const migrateUsers = () => {
 };
 
 /**
- * Migrates traces.db
+ * Migrates milestones.db
  */
 
 const migrateMilestones = () => {
-  // schemas as per traces.model.js
+  // schemas as per milestones.model.js
   const Item = new Schema({
     id: { type: String, default: shortid.generate },
     date: { type: Date, required: true },
@@ -212,7 +212,7 @@ const migrateMilestones = () => {
 
   // migrate users to Mongo
   const lines = fs
-    .readFileSync('./traces.db', 'utf-8')
+    .readFileSync('./milestones.db', 'utf-8')
     .split('\n')
     .filter(Boolean);
 

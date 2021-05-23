@@ -16,7 +16,7 @@ const { isRequestInternal } = require('../../utils/feathersUtils');
  The following params are accepted when creating a message for a conversation
 
  @params:
- traceId:        (string) the id of the trace that this conversation belongs to
+ milestoneId:        (string) the id of the milestone that this conversation belongs to
  messageContext:     (string) context of the message, see MESSAGE_CONTEXT below
  message:            (string) the actual message
  replyToId:          (string) id of the message that this is a reply to
@@ -25,67 +25,67 @@ const { isRequestInternal } = require('../../utils/feathersUtils');
  * */
 
 /**
- Only people involved with the trace can create conversation
+ Only people involved with the milestone can create conversation
  Sets the address creating the conversation as the owner
  */
 const restrictAndSetOwner = () => context => {
   const { app, params } = context;
-  const { traceId } = context.data;
+  const { milestoneId } = context.data;
   const { user, performedByAddress } = params;
 
   // external calls need a user
   if (!user && context.params.provider) throw new errors.NotAuthenticated();
 
   return app
-    .service('traces')
-    .get(traceId)
-    .then(trace => {
+    .service('milestones')
+    .get(milestoneId)
+    .then(milestone => {
       // for internal calls there's no user, so the user creating the message is passed as a context.params.performedByAddress
       // for external calls, the current user creates the message
       context.data.ownerAddress = (user && user.address) || performedByAddress;
 
       // set the role based on the address
-      // anyone not involved with the trace is not allowed to create conversation
+      // anyone not involved with the milestone is not allowed to create conversation
       // not taking into account that a user has one or more of these roles
       switch (context.data.ownerAddress) {
-        case trace.campaign.ownerAddress:
+        case milestone.campaign.ownerAddress:
           context.data.performedByRole = 'Campaign Manager';
           break;
-        case trace.campaign.coownerAddress:
+        case milestone.campaign.coownerAddress:
           context.data.performedByRole = 'Campaign Co-Manager';
           break;
-        case trace.ownerAddress:
+        case milestone.ownerAddress:
           context.data.performedByRole = 'Milestone Owner';
           break;
-        case trace.recipientAddress:
+        case milestone.recipientAddress:
           context.data.performedByRole = 'Recipient';
           break;
-        case trace.reviewerAddress:
+        case milestone.reviewerAddress:
           context.data.performedByRole = 'Reviewer';
           break;
-        case trace.campaignReviewerAddress:
+        case milestone.campaignReviewerAddress:
           context.data.performedByRole = 'Campaign Reviewer';
           break;
         default:
           if (isRequestInternal(context)) {
-            //  It's created when someone donated, so maybe he/she is not involved with trace
+            //  It's created when someone donated, so maybe he/she is not involved with milestone
             context.data.performedByRole = '';
           } else {
             throw new errors.Forbidden(
-              'Only people involved with the trace can create conversation',
+              'Only people involved with the milestone can create conversation',
             );
           }
       }
       return context;
     })
     .catch(e => {
-      logger.error(`unable to get trace ${traceId}`, e);
+      logger.error(`unable to get milestone ${milestoneId}`, e);
     });
 };
 
 /**
  message must be in context of the conversation
- for example, it must include trace state 'proposed' if the message is about a proposal
+ for example, it must include milestone state 'proposed' if the message is about a proposal
  * */
 const checkMessageContext = () => context => {
   const { messageContext, replyToId } = context.data;

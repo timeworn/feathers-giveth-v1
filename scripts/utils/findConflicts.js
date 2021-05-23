@@ -178,7 +178,7 @@ const appFactory = () => {
 const app = appFactory();
 app.set('mongooseClient', mongoose);
 
-const { TraceStatus, createModel } = require('../../src/models/traces.model');
+const { MilestoneStatus, createModel } = require('../../src/models/milestones.model');
 
 const Milestones = createModel(app);
 const Campaigns = require('../../src/models/campaigns.model').createModel(app);
@@ -479,7 +479,7 @@ const convertPledgeStateToStatus = (pledge, pledgeAdmin) => {
  */
 async function isReturnTransfer(transferInfo) {
   const { fromPledge, fromPledgeAdmin, toPledgeId, txHash, fromPledgeId } = transferInfo;
-  // currently only traces will can be over-funded
+  // currently only milestones will can be over-funded
   if (fromPledgeId === '0' || !fromPledgeAdmin || fromPledgeAdmin.type !== AdminTypes.MILESTONE) {
     return false;
   }
@@ -1230,7 +1230,7 @@ const createMilestoneForPledgeAdmin = async ({
   });
   return new Milestones({
     ...createMilestoneData,
-    status: TraceStatus.CANCELED,
+    status: MilestoneStatus.CANCELED,
     campaignId: campaign._id,
   }).save();
 };

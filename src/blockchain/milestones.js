@@ -1,6 +1,6 @@
 const logger = require('winston');
 const { toBN } = require('web3-utils');
-const { TraceStatus } = require('../models/traces.model');
+const { MilestoneStatus } = require('../models/milestones.model');
 const { DonationStatus } = require('../models/donations.model');
 const { CONVERSATION_MESSAGE_CONTEXT } = require('../models/conversations.model');
 const { getTransaction } = require('./lib/web3Helpers');
@@ -33,10 +33,10 @@ const getDonationPaymentsByToken = donations => {
   return payments;
 };
 
-const createPaymentConversationAndSendEmail = async ({ app, trace, txHash }) => {
+const createPaymentConversationAndSendEmail = async ({ app, milestone, txHash }) => {
   try {
-    const traceId = trace._id;
-    const { recipient, owner } = trace;
+    const milestoneId = milestone._id;
+    const { recipient, owner } = milestone;
 
     const paymentCollectedEvents = await app.service('events').find({
       paginate: false,
@@ -56,7 +56,7 @@ const createPaymentConversationAndSendEmail = async ({ app, trace, txHash }) => 
     const donations = await app.service('donations').find({
       paginate: false,
       query: {
-        ownerTypeId: traceId,
+        ownerTypeId: milestoneId,
         status: DonationStatus.PAID,
         txHash,
       },
@@ -65,7 +65,7 @@ const createPaymentConversationAndSendEmail = async ({ app, trace, txHash }) => 
     const payments = getDonationPaymentsByToken(donations);
     const conversation = await app.service('conversations').create(
       {
-        traceId,
+        milestoneId,
         messageContext: CONVERSATION_MESSAGE_CONTEXT.PAYMENT,
         txHash,
         payments,
@@ -74,7 +74,7 @@ const createPaymentConversationAndSendEmail = async ({ app, trace, txHash }) => 
       { performedByAddress: donations[0].actionTakerAddress },
     );
     await donationsCollected(app, {
-      trace,
+      milestone,
       conversation,
     });
   } catch (e) {
@@ -83,21 +83,21 @@ const createPaymentConversationAndSendEmail = async ({ app, trace, txHash }) => 
 };
 
 /**
- * object factory to keep feathers cache in sync with trace contracts
+ * object factory to keep feathers cache in sync with milestone contracts
  */
-const tracesFactory = app => {
-  const traces = app.service('traces');
+const milestonesFactory = app => {
+  const milestones = app.service('milestones');
 
   /**
    *
-   * @param {string|int} projectId the liquidPledging adminId for this trace
+   * @param {string|int} projectId the liquidPledging adminId for this milestone
    * @param {string} status The status to set
    * @param {string} txHash The txHash of the event that triggered this update
    */
-  async function updateTraceStatus(projectId, status, txHash) {
+  async function updateMilestoneStatus(projectId, status, txHash) {
     try {
-      const data = await traces.find({ paginate: false, query: { projectId } });
-      // only interested in traces we are aware of.
+      const data = await milestones.find({ paginate: false, query: { projectId } });
+      // only interested in milestones we are aware of.
       if (data.length === 1) {
         const m = data[0];
         const { from } = await getTransaction(app, txHash);
@@ -109,8 +109,8 @@ const tracesFactory = app => {
           REJECTED,
           IN_PROGRESS,
           COMPLETED,
-        } = TraceStatus;
-        // bug in lpp-capped-trace contract will allow state to be "reverted"
+        } = MilestoneStatus;
+        // bug in lpp-capped-milestone contract will allow state to be "reverted"
         // we want to ignore that
         if (
           ([PAYING, PAID, CANCELED].includes(m.status) &&
@@ -118,7 +118,7 @@ const tracesFactory = app => {
           (m.status === COMPLETED && [REJECTED, IN_PROGRESS, CANCELED].includes(status))
         ) {
           logger.info(
-            'Ignoring trace state reversion -> projectId:',
+            'Ignoring milestone state reversion -> projectId:',
             projectId,
             '-> currentStatus:',
             m.status,
@@ -128,7 +128,7 @@ const tracesFactory = app => {
           return null;
         }
 
-        return traces.patch(
+        return milestones.patch(
           m._id,
           {
             status,
@@ -142,27 +142,27 @@ const tracesFactory = app => {
       }
       return null;
     } catch (e) {
-      logger.error('updateTraceStatus error', e);
+      logger.error('updateMilestoneStatus error', e);
       return null;
     }
   }
 
   /**
    *
-   * @param {string|int} projectId the liquidPledging adminId for this trace
+   * @param {string|int} projectId the liquidPledging adminId for this milestone
    * @param {string} recipient The address of the recipient
    * @param {string} txHash The txHash of the event that triggered this update
    */
-  async function updateTraceRecipient(projectId, recipient, txHash) {
+  async function updateMilestoneRecipient(projectId, recipient, txHash) {
     try {
-      const data = await traces.find({ paginate: false, query: { projectId } });
-      // only interested in traces we are aware of.
+      const data = await milestones.find({ paginate: false, query: { projectId } });
+      // only interested in milestones we are aware of.
       if (data.length === 1) {
         const m = data[0];
         const { from, timestamp } = await getTransaction(app, txHash);
-        const traceId = m._id;
-        const trace = await traces.patch(
-          traceId,
+        const milestoneId = m._id;
+        const milestone = await milestones.patch(
+          milestoneId,
           {
             recipientAddress: recipient,
             $unset: { pendingRecipientAddress: true },
@@ -174,36 +174,36 @@ const tracesFactory = app => {
           },
         );
         await createRecipientChangedConversation(app, {
-          traceId,
+          milestoneId,
           newRecipientAddress: recipient,
           timestamp,
           txHash,
           from,
         });
-        return trace;
+        return milestone;
       }
       return null;
     } catch (e) {
-      logger.error('Error trace patch:', e);
+      logger.error('Error milestone patch:', e);
       return null;
     }
   }
 
   /**
    *
-   * @param {string|int} projectId the liquidPledging adminId for this trace
+   * @param {string|int} projectId the liquidPledging adminId for this milestone
    * @param {string} reviewer The address of the recipient
    * @param {string} txHash The txHash of the event that triggered this update
    */
-  async function updateTraceReviewer(projectId, reviewer, txHash) {
+  async function updateMilestoneReviewer(projectId, reviewer, txHash) {
     try {
-      const data = await traces.find({ paginate: false, query: { projectId } });
-      // only interested in traces we are aware of.
+      const data = await milestones.find({ paginate: false, query: { projectId } });
+      // only interested in milestones we are aware of.
       if (data.length === 1) {
         const m = data[0];
         const { from } = await getTransaction(app, txHash);
 
-        const trace = await traces.patch(
+        const milestone = await milestones.patch(
           m._id,
           {
             reviewerAddress: reviewer,
@@ -214,11 +214,11 @@ const tracesFactory = app => {
             performedByAddress: from,
           },
         );
-        return trace;
+        return milestone;
       }
       return null;
     } catch (e) {
-      logger.error('Update trace reviewer:', e);
+      logger.error('Update milestone reviewer:', e);
       return null;
     }
   }
@@ -236,9 +236,9 @@ const tracesFactory = app => {
         );
       }
 
-      return updateTraceStatus(
+      return updateMilestoneStatus(
         event.returnValues.idProject,
-        TraceStatus.NEEDS_REVIEW,
+        MilestoneStatus.NEEDS_REVIEW,
         event.transactionHash,
       );
     },
@@ -255,9 +255,9 @@ const tracesFactory = app => {
         );
       }
 
-      return updateTraceStatus(
+      return updateMilestoneStatus(
         event.returnValues.idProject,
-        TraceStatus.IN_PROGRESS,
+        MilestoneStatus.IN_PROGRESS,
         event.transactionHash,
       );
     },
@@ -274,9 +274,9 @@ const tracesFactory = app => {
         );
       }
 
-      return updateTraceStatus(
+      return updateMilestoneStatus(
         event.returnValues.idProject,
-        TraceStatus.COMPLETED,
+        MilestoneStatus.COMPLETED,
         event.transactionHash,
       );
     },
@@ -293,7 +293,7 @@ const tracesFactory = app => {
         );
       }
 
-      return updateTraceReviewer(
+      return updateMilestoneReviewer(
         event.returnValues.idProject,
         event.returnValues.reviewer,
         event.transactionHash,
@@ -312,7 +312,7 @@ const tracesFactory = app => {
         );
       }
 
-      return updateTraceRecipient(
+      return updateMilestoneRecipient(
         event.returnValues.idProject,
         event.returnValues.recipient,
         event.transactionHash,
@@ -331,24 +331,24 @@ const tracesFactory = app => {
 
       const { idProject: projectId } = event.returnValues;
 
-      const matchingTraces = await traces.find({ paginate: false, query: { projectId } });
+      const matchingMilestones = await milestones.find({ paginate: false, query: { projectId } });
 
-      if (matchingTraces.length !== 1) {
+      if (matchingMilestones.length !== 1) {
         logger.info(
-          `Could not find a single trace with projectId: ${projectId}, found: ${matchingTraces.map(
+          `Could not find a single milestone with projectId: ${projectId}, found: ${matchingMilestones.map(
             m => m._id,
           )}`,
         );
         return null;
       }
-      const matchedTrace = matchingTraces[0];
+      const matchedMilestone = matchingMilestones[0];
 
       const donations = await app.service('donations').find({
         paginate: false,
         query: {
           status: { $in: [DonationStatus.COMMITTED, DonationStatus.PAYING] },
           amountRemaining: { $ne: '0' },
-          ownerTypeId: matchedTrace._id,
+          ownerTypeId: matchedMilestone._id,
         },
       });
 
@@ -357,16 +357,16 @@ const tracesFactory = app => {
 
       await createPaymentConversationAndSendEmail({
         app,
-        trace: matchedTrace,
+        milestone: matchedMilestone,
         txHash: event.transactionHash,
       });
 
-      // if (!trace.maxAmount || !trace.fullyFunded) return;
-      // never set uncapped or non-fullyFunded traces as PAID
-      if (!matchedTrace.maxAmount || !matchedTrace.fullyFunded) return null;
-      return updateTraceStatus(projectId, TraceStatus.PAID, event.transactionHash);
+      // if (!milestone.maxAmount || !milestone.fullyFunded) return;
+      // never set uncapped or non-fullyFunded milestones as PAID
+      if (!matchedMilestone.maxAmount || !matchedMilestone.fullyFunded) return null;
+      return updateMilestoneStatus(projectId, MilestoneStatus.PAID, event.transactionHash);
     },
   };
 };
 
-module.exports = tracesFactory;
+module.exports = milestonesFactory;
