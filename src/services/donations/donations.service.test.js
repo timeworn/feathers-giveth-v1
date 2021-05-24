@@ -13,8 +13,8 @@ const createDonationPayload = {
   amountRemaining: '9793698658625350941',
   giverAddress: SAMPLE_DATA.USER_ADDRESS,
   ownerId: 49,
-  ownerTypeId: SAMPLE_DATA.MILESTONE_ID,
-  ownerType: 'milestone',
+  ownerTypeId: SAMPLE_DATA.TRACE_ID,
+  ownerType: 'trace',
   pledgeId: '89',
   token: {
     name: 'ETH',
@@ -41,9 +41,9 @@ async function createCampaigns(data) {
   return response.body;
 }
 
-async function createMilestone(data) {
+async function createTrace(data) {
   const response = await request(baseUrl)
-    .post('/milestones')
+    .post('/traces')
     .set({ Authorization: getJwt() })
     .send(data);
   return response.body;
@@ -164,21 +164,21 @@ function postDonationsAddCampaignsToDacTestCases() {
     const dac = await app.service('dacs').get(SAMPLE_DATA.DAC_ID);
     assert.isTrue(dac.campaigns.includes(campaignId));
   });
-  it('should create delegate donation and connect milestone parent campaign to dac', async () => {
+  it('should create delegate donation and connect trace parent campaign to dac', async () => {
     const campaign = await createCampaigns(SAMPLE_DATA.CREATE_CAMPAIGN_DATA);
     const campaignId = campaign._id;
     let dac = await app.service('dacs').get(SAMPLE_DATA.DAC_ID);
     assert.isNotOk(dac.campaigns && dac.campaigns.includes(campaignId));
-    const milestone = await createMilestone({ ...SAMPLE_DATA.createMilestoneData(), campaignId });
-    assert.equal(milestone.campaignId, campaignId);
+    const trace = await createTrace({ ...SAMPLE_DATA.createTraceData(), campaignId });
+    assert.equal(trace.campaignId, campaignId);
     const response = await request(baseUrl)
       .post(relativeUrl)
       .set({ Authorization: getJwt() })
       .send({
         ...createDonationPayload,
         delegateTypeId: SAMPLE_DATA.DAC_ID,
-        intendedProjectType: 'milestone',
-        intendedProjectTypeId: milestone._id,
+        intendedProjectType: 'trace',
+        intendedProjectTypeId: trace._id,
       });
     assert.equal(response.statusCode, 201);
 
