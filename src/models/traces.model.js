@@ -74,7 +74,6 @@ function Milestone(app) {
       donationCounters: [DonationCounter],
       peopleCount: { type: Number },
       mined: { type: Boolean, required: true, default: false },
-      verified: { type: Boolean, default: false },
       prevStatus: { type: String },
       url: { type: String },
       customThanksMessage: { type: String },
