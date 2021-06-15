@@ -23,14 +23,6 @@ const checkTraceName = require('./checkTraceName');
 const { getBlockTimestamp, ZERO_ADDRESS } = require('../../blockchain/lib/web3Helpers');
 const { getTokenByAddress } = require('../../utils/tokenHelper');
 const createModelSlug = require('../createModelSlug');
-const { isRequestInternal } = require('../../utils/feathersUtils');
-
-const removeProtectedFields = () => context => {
-  if (context && context.data && !isRequestInternal(context)) {
-    delete context.data.verified;
-  }
-  return context;
-};
 
 const traceResolvers = {
   before: context => {
@@ -335,7 +327,6 @@ module.exports = {
     ],
     get: [],
     create: [
-      removeProtectedFields(),
       checkConversionRates(),
       checkTraceDates(),
       checkTraceName(),
@@ -348,7 +339,6 @@ module.exports = {
       createModelSlug('traces'),
     ],
     update: [
-      removeProtectedFields(),
       restrict(),
       checkTraceDates(),
       ...address,
@@ -357,7 +347,6 @@ module.exports = {
       checkTraceName(),
     ],
     patch: [
-      removeProtectedFields(),
       restrict(),
       sanitizeAddress(
         ['pluginAddress', 'reviewerAddress', 'campaignReviewerAddress', 'recipientAddress'],
