@@ -1,4 +1,5 @@
 const { disallow } = require('feathers-hooks-common');
+const errors = require('@feathersjs/errors');
 
 const onlyInternal = require('../../hooks/onlyInternal');
 const {
@@ -6,6 +7,7 @@ const {
   getHourlyCryptoConversion,
   getHourlyMultipleCryptoConversion,
 } = require('./getConversionRatesService');
+const { getTransaction } = require('../../blockchain/lib/web3Helpers');
 
 const findConversionRates = () => async context => {
   const { app, params } = context;
@@ -13,10 +15,34 @@ const findConversionRates = () => async context => {
   // return context to avoid recursion
   // getConversionRates also calls this hook
   if (params.internal) return context;
-  const { date: queryDate, to, symbol, from, interval: queryInterval } = params.query;
+  const {
+    date: queryDate,
+    to,
+    symbol,
+    from,
+    interval: queryInterval,
+    txHash,
+    isHome,
+  } = params.query;
 
-  const date = Number(queryDate);
-  if (queryInterval === 'hourly') {
+  let date = Number(queryDate);
+  let interval = queryInterval;
+
+  if (txHash) {
+    let error;
+    try {
+      const tx = await getTransaction(app, txHash, isHome === 'true');
+      if (tx) {
+        date = tx.timestamp;
+        interval = 'hourly';
+      }
+    } catch (e) {
+      error = e;
+    }
+    if (error) throw new errors.BadRequest(`Invalid tx ${error}`);
+  }
+
+  if (interval === 'hourly') {
     if (Array.isArray(to)) {
       return getHourlyMultipleCryptoConversion(app, date, from, to).then(res => {
         context.result = res;
