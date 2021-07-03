@@ -4,7 +4,7 @@ const { createModel } = require('../../models/traces.model');
 const hooks = require('./traces.hooks');
 const { defaultFeatherMongooseOptions } = require('../serviceCommons');
 
-module.exports = function traces() {
+module.exports = function milestones() {
   const app = this;
   const Model = createModel(app);
   const paginate = app.get('paginate');
