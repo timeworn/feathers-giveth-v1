@@ -1,13 +1,7 @@
 const request = require('supertest');
 const config = require('config');
 const { assert, expect } = require('chai');
-const {
-  getJwt,
-  SAMPLE_DATA,
-  generateRandomMongoId,
-  generateRandomEtheriumAddress,
-  assertThrowsAsync,
-} = require('../../../test/testUtility');
+const { getJwt, SAMPLE_DATA, generateRandomMongoId } = require('../../../test/testUtility');
 const { getFeatherAppInstance } = require('../../app');
 
 let app;
@@ -107,16 +101,6 @@ function postMilestoneTestCases() {
     createMileStoneData.ownerAddress = SAMPLE_DATA.USER_ADDRESS;
     const trace = await createTrace(createMileStoneData);
     assert.isFalse(trace.verified);
-  });
-
-  it('should throw exception with create trace with ownerAddress of another user', async () => {
-    const createMileStoneData = { ...SAMPLE_DATA.createTraceData(), verified: true };
-    createMileStoneData.status = SAMPLE_DATA.TRACE_STATUSES.PROPOSED;
-    createMileStoneData.ownerAddress = generateRandomEtheriumAddress();
-    const badFunc = async () => {
-      await createTrace(createMileStoneData);
-    };
-    await assertThrowsAsync(badFunc, 'user can create trace with his/her address');
   });
 }
 
