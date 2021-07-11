@@ -8,9 +8,7 @@ const { responseLoggerHook, startMonitoring } = require('./hooks/logger');
 const authenticate = () => context => {
   // No need to authenticate internal calls
   if (isRequestInternal(context)) return context;
-  if (context.path === 'analytics') {
-    return context;
-  }
+
   // socket connection is already authenticated, we just check if user has been set on context.params
   if (context.params.provider === 'socketio' && context.params.user) {
     return context;
@@ -19,12 +17,8 @@ const authenticate = () => context => {
   if (context.params.provider === 'socketio' && context.path === 'authentication') {
     return context;
   }
-  if (
-    context.params.provider === 'socketio' &&
-    context.path === 'donations' &&
-    context.method === 'create'
-  ) {
-    // for creating donations it's not needed to be authenticated, anonymous users can donate
+  if ( context.params.provider === 'socketio' && context.path === 'donations') {
+    // for creating and updating donations it's not needed to be authenticated, anonymous users can donate
     return context;
   }
   if (context.params.provider === 'rest') {
